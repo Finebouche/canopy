@@ -40,6 +40,7 @@ optimized with Optuna on the train songs, and evaluated on the test songs with p
 | `canary/syllables_classification` | Frame-by-frame syllable classification (`classification.py`), its HPO and certainty, canapy reference |
 | `outputs/canary` | Results (CSV); Optuna studies in `outputs/canary/studies` (not tracked) |
 | `slurm` | Jobs on PlaFRIM: HPO, evaluations (`submit_canary.sh`, `submit_next_phrase.sh`, `submit_syllables.sh`, `canary.sbatch`) |
+| `ETAT_DES_TRAVAUX.md` | State of the work (in French): what was tested, the conclusions, what to rerun with the final annotations |
 | `1. Exploration.ipynb` | Exploration of the songs: statistics, split, next-phrase prediction along a song, space of the phrases (UMAP, t-SNE), outliers and corrections of the annotations |
 
 ---

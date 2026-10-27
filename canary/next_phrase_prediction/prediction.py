@@ -24,15 +24,21 @@ monomials of the state up to degree n, the quadratic form for n = 2), its coeffi
 cross-validation (the coefficients of the studies are those of the linear readout).
 Training rows of the readout (HAG_CANARY_POINTS), from the states of the window of each point: those of the frames of
 the phrase ending there, up to the point (from the first frame of the song for the point before the first phrase; the
-state at the point alone when there is no such frame): "last" (default) its last state only, "mean" the mean of its
-states, "all" all its states, "tail" those of its last HAG_CANARY_TAIL frames (default 10, 116 ms), "tail_mean" their
-mean; all the rows of a point have its next label. Decision (HAG_CANARY_DECISION, the scores of the validation and
-test points): the outputs on the last state of the window ("last"), on the mean of its states ("mean") or of those of
-its last HAG_CANARY_TAIL frames ("tail_mean"), the means of the outputs on these states with the linear readout; by
-default, on the training row of the point, or on the mean of its rows ("all": "mean", "tail": "tail_mean").
+state at the point alone when there is no such frame): "last" (default) its last state only, "tail" those of its
+last HAG_CANARY_TAIL frames (default 10, 116 ms), "tail_mean" their mean; all the rows of a point have its next label.
+Decision (HAG_CANARY_DECISION, the scores of the validation and test points): the outputs on the last state of the
+window ("last") or on the mean of the states of its last HAG_CANARY_TAIL frames ("tail_mean", the mean of the outputs
+on these states with the linear readout); by default, on the training row of the point, or on the mean of its rows
+("tail": "tail_mean"). (The means of all the states of the window, "mean", and all its states as rows, "all", were
+removed: always worse, outputs/canary/next_phrase_calls{,_leak}_hpo_readouts.csv.)
 Comma-separated lists of these three variables: all their combinations (readouts (points, decision, tail), the tail
 None when neither uses it), on the same reservoirs, their coefficients chosen by the same cross-validation (that of
 the study for "last" -> "last"), and their paired comparisons with "last" -> "last".
+With the studies of the readout (HAG_CANARY_TAIL_HPO=1, canary.next_phrase_prediction.hpo), the readouts of each
+condition are instead: "last" -> "last", that of its study (column hpo; for the conditions without study, mfcc and
+hybrids, the best of TAIL_READOUTS in the cross-validation) and, for each kind of tail readout (training rows "tail"
+or "tail_mean", decision "last" or "tail_mean"), the length of tail of the best cross-validation accuracy (column
+best_tail), the coefficients of all of them chosen by the same cross-validation.
 Metrics as Maxime's: accuracy and macro F1 of all the points,
 without the last one of each song ("skip_last": its target is END), and of the phrases only ("no_end": points whose
 target is a phrase, argmax over the phrases).
@@ -69,7 +75,7 @@ from reservoirpy.nodes import Ridge
 from canary.hpo import CV_SEED, FOLD_SEED, N_FOLDS
 from canary.models import CHUNK, build, state_chunks, states
 from canary.next_phrase_prediction.evaluate import conditions
-from canary.next_phrase_prediction.hpo import CALLS, RESET, STUDY_PREFIX, TASK
+from canary.next_phrase_prediction.hpo import CALLS, MAX_TAIL, RESET, STUDY_PREFIX, TAIL_HPO, TASK
 from canary.datasets.songs import SONGS_SAMPLING_RATE, annotations_of_songs, canary_mfcc_config, song_phrases
 
 SIZES = [500, 1000]
@@ -85,17 +91,31 @@ BASE_READOUT = ("last", "last", None)  # (training rows, decision, tail): the la
 def readout_of(points, decision, tail):
     """The readout (points, decision, tail), the decision by default that of the training rows, the tail None when
     neither uses it."""
-    decision = decision or {"all": "mean", "tail": "tail_mean"}.get(points, points)
-    if points not in ("last", "mean", "all") + TAIL_MODES or decision not in ("last", "mean", "tail_mean"):
-        raise ValueError(f"Unknown readout {points} -> {decision}: HAG_CANARY_POINTS last, mean, all, tail or "
-                         f"tail_mean, HAG_CANARY_DECISION last, mean or tail_mean")
-    if READOUT_ORDER > 1 and points in ("all", "tail"):
-        raise ValueError("The generalized readout needs a single row per point (HAG_CANARY_POINTS last, mean or "
-                         "tail_mean)")
+    decision = decision or {"tail": "tail_mean"}.get(points, points)
+    if points not in ("last",) + TAIL_MODES or decision not in ("last", "tail_mean"):
+        raise ValueError(f"Unknown readout {points} -> {decision}: HAG_CANARY_POINTS last, tail or tail_mean, "
+                         f"HAG_CANARY_DECISION last or tail_mean")
+    if READOUT_ORDER > 1 and points == "tail":
+        raise ValueError("The generalized readout needs a single row per point (HAG_CANARY_POINTS last or tail_mean)")
     return points, decision, tail if points in TAIL_MODES or decision == "tail_mean" else None
 
 
-READOUTS = list(dict.fromkeys(
+def readout_of_params(params):
+    """Readout of the parameters "readout:*" of a study of the readout (canary.next_phrase_prediction.hpo,
+    TAIL_HPO), None without them: "last" -> "last" for a tail of 1 frame."""
+    tail = params.get("readout:tail")
+    if tail is None:
+        return None
+    if tail == 1:
+        return BASE_READOUT
+    return readout_of("tail_mean" if params["readout:train_mean"] else "tail",
+                      "tail_mean" if params["readout:decision_mean"] else "last", int(tail))
+
+
+# all the readouts of the studies of the readout (TAIL_HPO), "last" -> "last" first
+TAIL_READOUTS = [BASE_READOUT] + [readout_of(points, decision, tail) for points in TAIL_MODES
+                                  for decision in ("last", "tail_mean") for tail in range(2, MAX_TAIL + 1)]
+READOUTS = TAIL_READOUTS if TAIL_HPO and READOUT_ORDER == 1 else list(dict.fromkeys(
     readout_of(points, decision, int(tail))
     for points in os.environ.get("HAG_CANARY_POINTS", "last").split(",")
     for decision in os.environ.get("HAG_CANARY_DECISION", "").split(",")
@@ -171,8 +191,8 @@ def training_of(readout):
 def point_data(reservoirs, songs, waves, readouts, fit=(), classes=None):
     """
     States of the prediction points of the songs for the decisions of the readouts, {decision_of(readout): {wave:
-    (points, units)}}: in the window of each point (point_windows), its last state, the mean of its states or of its
-    last tail ones. With the songs fit (and the classes), also the training data of the readouts on them,
+    (points, units)}}: in the window of each point (point_windows), its last state or the mean of its last tail ones.
+    With the songs fit (and the classes), also the training data of the readouts on them,
     {training_of(readout): (rows, labels)}: the rows of the windows with their one-hot next labels.
     """
     fit = set(fit)
@@ -180,7 +200,7 @@ def point_data(reservoirs, songs, waves, readouts, fit=(), classes=None):
     accumulated = {training: ([], []) for training in {training_of(readout) for readout in readouts}} if fit else {}
     for w, windows in point_windows(reservoirs, songs, waves):
         def selection(mode, tail):  # (the states of each window used)
-            return [x[-1:] for x in windows] if mode == "last" else [x[-tail:] for x in windows] if tail else windows
+            return [x[-1:] for x in windows] if mode == "last" else [x[-tail:] for x in windows]
         for (decision, tail), result in states.items():
             result[w] = np.array([x.mean(axis=0) for x in selection(decision, tail)])
         if w not in fit:
@@ -188,7 +208,7 @@ def point_data(reservoirs, songs, waves, readouts, fit=(), classes=None):
         next_labels = (songs[w]["next"][:, None] == classes[None, :]).astype(np.float64)
         for (points, tail), (inputs, labels) in accumulated.items():
             rows = selection(points, tail)
-            if points in ("all", "tail"):
+            if points == "tail":
                 inputs.append(np.vstack(rows))
                 labels.append(np.repeat(next_labels, [len(x) for x in rows], axis=0))
             else:
@@ -360,16 +380,24 @@ def run(todo, nb_seeds):
     rows = []
     for condition, model, params, ridge, size in todo:
         # (the coefficient of the study for "last" -> "last": that of the linear readout)
-        study = ridge is not None and READOUT_ORDER == 1 and BASE_READOUT in READOUTS
+        study = ridge is not None and READOUT_ORDER == 1 and BASE_READOUT in READOUTS and not TAIL_HPO
         chosen = {} if study and READOUTS == [BASE_READOUT] else \
             choose_ridges(model, params, size, songs, train_songs, frame, classes, READOUTS)
         chosen.update({BASE_READOUT: (ridge, np.nan)} if study else {})
-        ridges = {readout: chosen[readout][0] for readout in READOUTS}
-        accuracies = {readout: [] for readout in READOUTS}
+        readouts, columns_of = READOUTS, {}
+        if TAIL_HPO:  # "last" -> "last", the readout of the study and the best tail of each kind of readout
+            hpo = readout_of_params(params) or max(READOUTS, key=lambda readout: chosen[readout][1])
+            best_tail = {max((r for r in READOUTS[1:] if r[:2] == kind), key=lambda r: chosen[r][1])
+                         for kind in dict.fromkeys(r[:2] for r in READOUTS[1:])}
+            readouts = list(dict.fromkeys([BASE_READOUT, hpo, *sorted(best_tail)]))
+            columns_of = {r: dict(hpo=r == hpo, best_tail=r in best_tail) for r in readouts}
+        ridges = {readout: chosen[readout][0] for readout in readouts}
+        accuracies = {readout: [] for readout in readouts}
         for seed in range(nb_seeds):
             results = evaluate(model, params, size, ridges, songs, train_songs, test_songs, frame, classes, seed)
             for (points, decision, tail), result in results.items():
-                columns = {} if READOUTS == [BASE_READOUT] else dict(points=points, decision=decision, tail=tail)
+                columns = {} if READOUTS == [BASE_READOUT] else dict(points=points, decision=decision, tail=tail,
+                                                                     **columns_of.get((points, decision, tail), {}))
                 rows.append(dict(condition=condition, network_size=size, seed=seed, **columns,
                                  ridge=ridges[points, decision, tail], cv_accuracy=chosen[points, decision, tail][1],
                                  **result))
@@ -410,6 +438,13 @@ def save(results):
     results.to_csv(OUTPUTS / f"{NAME}.csv", index=False)
     if "points" not in results:
         comparisons = compare(results, metric="accuracy")
+    elif "hpo" in results:  # (the readouts of the studies, TAIL_HPO; the tail differs between the conditions)
+        comparisons = compare(results[results.hpo.astype(bool)], metric="accuracy")
+        readout_comparisons = compare_readouts(results[results.hpo.astype(bool) | ((results.points == "last")
+                                                                                   & (results.decision == "last"))])
+        print(readout_comparisons.round(4).to_string(index=False))
+        readout_comparisons.to_csv(OUTPUTS / f"{NAME}_readout_comparisons.csv", index=False)
+        print("Saved to", OUTPUTS / f"{NAME}_readout_comparisons.csv")
     else:
         comparisons = pd.concat([compare(group, metric="accuracy").assign(points=points, decision=decision,
                                                                            tail=None if tail < 0 else int(tail))
