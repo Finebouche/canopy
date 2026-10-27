@@ -1,0 +1,161 @@
+"""
+Syllable classification of canary songs, frame by frame, as canapy (https://github.com/birds-canopy/canapy, Trouvain &
+Hinaut): the readout predicts the label of every frame (the 27 syllable types, call, TRASH and SIL), and the score is
+canapy's frame accuracy: the share of the frames of the recordings (silences included) whose raw prediction (most
+likely class, no post-processing) is the annotated label. A frame k is labeled with the annotated segment that covers
+it, frames from floor(onset / hop) to floor(offset / hop) (canapy's as_frame_comparison), SIL elsewhere.
+
+Songs, MFCC (44.1 kHz) and reservoirs of canary.syllables_classification (common, models): the conditions of
+canary.syllables_classification.evaluate.conditions, with the best parameters of the syllable studies
+(canary.syllables_classification.hpo, optimized on the out-of-fold frame accuracy). The readout is a ridge regression on the
+one-hot labels (centered statistics, canary.models.normal_equations), its coefficient chosen by a
+3-fold cross-validation by song on the train songs (out-of-fold frame accuracy), then trained on all the train songs
+and scored on the test songs for each seed (paired comparisons, canary.evaluate.compare).
+
+Results: outputs/canary/<prefix of the studies>hpo.csv and ..._comparisons.csv (syllables_hpo.csv,
+syllables_gains_hpo.csv with HAG_CANARY_INPUT_GAINS=1, syllables_gains_leak_hpo.csv with HAG_CANARY_LEAK=1 too).
+Usage:
+  python -m canary.syllables_classification.classification [sizes] [nb_seeds]   all the conditions (default 250,500,1000, 10 seeds)
+  python -m canary.syllables_classification.classification run <condition> <size> [nb_seeds]   one condition (one job of slurm/submit_syllables.sh),
+                                                                        results in outputs/canary/syllables_parts
+  python -m canary.syllables_classification.classification merge                               results of the parts and the comparisons
+  python -m canary.syllables_classification.classification list <sizes>                        "<condition> <size>" of all the conditions
+"""
+import sys
+
+import numpy as np
+import pandas as pd
+from sklearn.model_selection import KFold
+
+from canary.datasets.songs import annotations_of_songs
+from canary.common import OUTPUTS, RIDGES, load_dataset, pretrain_phrases
+from canary.evaluate import compare
+from canary.hpo import CV_SEED, FOLD_SEED, N_FOLDS
+from canary.models import build, normal_equations, ridge_readout, state_chunks
+from canary.syllables_classification.evaluate import SIZES, conditions
+from canary.syllables_classification.hpo import STUDY_PREFIX
+
+SILENCE = "SIL"
+
+
+def add_frame_labels(songs, frame):
+    """songs[w]["labels"]: label of each frame (all the annotated labels, SIL between segments); returns the classes."""
+    annotations = annotations_of_songs()
+    for wave, segments in annotations[annotations["wave"].isin(list(songs))].groupby("wave"):
+        n_frames = len(songs[wave]["mfcc"])
+        labels = np.full(n_frames, SILENCE, dtype=object)
+        for start, end, label in segments.sort_values("start")[["start", "end", "syll"]].itertuples(index=False):
+            labels[int(np.floor(start / frame)):min(int(np.floor(end / frame)), n_frames)] = label
+        songs[wave]["labels"] = labels
+    classes = np.array(sorted({label for song in songs.values() for label in song["labels"]}))
+    for song in songs.values():
+        song["Y"] = (song["labels"][:, None] == classes[None, :]).astype(np.float64)
+    return classes
+
+
+def correct_frames(reservoirs, songs, waves, Wouts, classes):
+    """(correct frames per readout of Wouts, correct non-silent frames per readout, frames, non-silent frames)."""
+    stacked = np.concatenate(Wouts, axis=1)  # (units + 1, readouts * classes)
+    n_classes = len(classes)
+    correct, correct_sound, total, total_sound = np.zeros(len(Wouts)), np.zeros(len(Wouts)), 0, 0
+    for part, part_states in state_chunks(reservoirs, songs, waves):
+        for x, w in zip(part_states, part):
+            outputs = x.astype(np.float64) @ stacked[:-1] + stacked[-1]
+            predicted = classes[outputs.reshape(len(x), len(Wouts), n_classes).argmax(axis=2)]  # (T, readouts)
+            labels = songs[w]["labels"][:, None]
+            sound = labels[:, 0] != SILENCE
+            correct += (predicted == labels).sum(axis=0)
+            correct_sound += (predicted[sound] == labels[sound]).sum(axis=0)
+            total += len(x)
+            total_sound += int(sound.sum())
+    return correct, correct_sound, total, total_sound
+
+
+def choose_ridge(model, params, size, songs, train_songs, frame, classes):
+    """Ridge coefficient of the best out-of-fold frame accuracy, in a 3-fold cross-validation by song."""
+    correct = np.zeros(len(RIDGES))
+    total = 0
+    for k, (fit_index, val_index) in enumerate(KFold(N_FOLDS, shuffle=True, random_state=FOLD_SEED).split(train_songs)):
+        np.random.seed(CV_SEED + k)
+        fit = [train_songs[i] for i in fit_index]
+        reservoirs = build(model, params, size, pretrain_phrases(songs, fit, frame))
+        statistics = normal_equations(reservoirs, songs, fit, target="Y")
+        fold_correct, _, fold_total, _ = correct_frames(reservoirs, songs, [train_songs[i] for i in val_index],
+                                                        [ridge_readout(statistics, ridge) for ridge in RIDGES], classes)
+        correct += fold_correct
+        total += fold_total
+    best = int(np.argmax(correct))
+    return float(RIDGES[best]), correct[best] / total
+
+
+def evaluate(model, params, size, ridge, songs, train_songs, test_songs, frame, classes, seed):
+    np.random.seed(seed)
+    reservoirs = build(model, params, size, pretrain_phrases(songs, train_songs, frame))
+    Wout = ridge_readout(normal_equations(reservoirs, songs, train_songs, target="Y"), ridge)
+    correct, correct_sound, total, total_sound = correct_frames(reservoirs, songs, test_songs, [Wout], classes)
+    return dict(frame_accuracy=correct[0] / total, frame_accuracy_without_silence=correct_sound[0] / total_sound)
+
+
+# reservoirs of the syllable studies (with the input gains, the leak rate) or of the boundary studies
+NAME = f"{STUDY_PREFIX}hpo"
+PARTS = OUTPUTS / f"{NAME}_parts"
+
+
+def all_conditions(sizes):
+    """[(condition, model, params, size)], mfcc first (size 0)."""
+    todo = [("mfcc", "mfcc", {}, 0)]
+    for size in sizes:
+        todo += [(condition, model, params, size) for condition, model, params, _, _ in conditions(size)]
+    return todo
+
+
+def run(todo, nb_seeds):
+    songs, train_songs, test_songs, frame = load_dataset()
+    classes = add_frame_labels(songs, frame)
+    print(f"{len(train_songs)} train / {len(test_songs)} test songs, {len(classes)} classes, "
+          f"{sum(len(songs[w]['labels']) for w in test_songs)} test frames", flush=True)
+    rows = []
+    for condition, model, params, size in todo:
+        ridge, cv_accuracy = choose_ridge(model, params, size, songs, train_songs, frame, classes)
+        for seed in range(nb_seeds):
+            result = evaluate(model, params, size, ridge, songs, train_songs, test_songs, frame, classes, seed)
+            rows.append(dict(condition=condition, network_size=size, seed=seed, ridge=ridge,
+                             cv_frame_accuracy=cv_accuracy, **result))
+        accuracy = [row["frame_accuracy"] for row in rows[-nb_seeds:]]
+        print(f"{condition} ({size}): frame accuracy {100 * np.mean(accuracy):.2f} ± {100 * np.std(accuracy):.2f} % "
+              f"(ridge {ridge:.0e}, cross-validation {100 * cv_accuracy:.2f} %)", flush=True)
+    return pd.DataFrame(rows)
+
+
+def save(results):
+    comparisons = compare(results, metric="frame_accuracy")
+    pd.set_option("display.width", 200)
+    print(comparisons.round(4).to_string(index=False))
+    OUTPUTS.mkdir(parents=True, exist_ok=True)
+    results.to_csv(OUTPUTS / f"{NAME}.csv", index=False)
+    comparisons.to_csv(OUTPUTS / f"{NAME}_comparisons.csv", index=False)
+    print("Saved to", OUTPUTS / f"{NAME}.csv", "and", OUTPUTS / f"{NAME}_comparisons.csv")
+
+
+if __name__ == "__main__":
+    command = sys.argv[1] if len(sys.argv) > 1 else ""
+    if command == "list":
+        for condition, _, _, size in all_conditions([int(s) for s in sys.argv[2].split(",")]):
+            print(condition, size)
+    elif command == "run":
+        condition, size = sys.argv[2], int(sys.argv[3])
+        nb_seeds = int(sys.argv[4]) if len(sys.argv) > 4 else 10
+        todo = [c for c in all_conditions([size] if size else []) if c[0] == condition and c[3] == size]
+        if not todo:
+            raise ValueError(f"Unknown condition {condition} ({size})")
+        PARTS.mkdir(parents=True, exist_ok=True)
+        run(todo, nb_seeds).to_csv(PARTS / f"{condition}_{size}.csv", index=False)
+    elif command == "merge":
+        parts = sorted(PARTS.glob("*.csv"))
+        print(f"{len(parts)} conditions")
+        save(pd.concat([pd.read_csv(part) for part in parts], ignore_index=True))
+    else:
+        sizes = [int(s) for s in sys.argv[1].split(",")] if len(sys.argv) > 1 else SIZES
+        nb_seeds = int(sys.argv[2]) if len(sys.argv) > 2 else 10
+        save(run(all_conditions(sizes), nb_seeds))
+

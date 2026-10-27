@@ -1,0 +1,250 @@
+"""
+Canary song dataset (M1-2016-spring, https://zenodo.org/records/6521932): canary songs are sequences of phrases
+(A -> A -> B -> C ...), annotated segment by segment (phrases, calls, silences SIL and noises TRASH).
+
+The dataset is in CANARY_DIR: its annotations (ANNOTATIONS_DIR, tracked), those of the Zenodo record corrected, and
+its audio, downloaded from Zenodo into CANARY_DIR / "audio" (~855 MB), with the MFCC caches of canary.common (not
+tracked).
+
+Tasks: whole songs (load_songs, the next-phrase prediction and the syllable classification of canary), or one instance
+per phrase whose target is the label of the NEXT phrase in the same song (load_canary_dataset, the Canary task of hag).
+"""
+import urllib.request
+import warnings
+import zipfile
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import soundfile as sf
+from joblib import Parallel, delayed
+from sklearn.model_selection import GroupShuffleSplit
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
+
+DATASETS_DIR = Path(__file__).resolve().parent
+CANARY_DIR = DATASETS_DIR / "Canary"  # (tracked: the annotations only)
+# The annotations of the Zenodo record, corrected. The annotations of 5 songs (172, 290, 365, 418, 430) are late on
+# their audio in the record (all their phrases sound like the label of a later one; their audio was probably cut at the
+# start after the annotation): shifted by -0.810, -0.990, -1.715, -1.980 and -1.380 s, estimated by the alignment of
+# their annotated segments (SIL and TRASH excepted) with the energy of the song between 500 and 8000 Hz, corrected by
+# the bias of this alignment on 100 other songs (+0.030 s, standard deviation 0.012 s); a kNN of the MFCC of the
+# phrases of the other songs agrees with 98-100 % of their labels after the shift (0-5 % before). Times clipped at 0,
+# segments ending before 0 removed. And 21 phrases relabeled as the label they sound like (outliers in the UMAP and the
+# t-SNE of the mean MFCC of the phrases, checked by ear: notebook "1. Exploration").
+ANNOTATIONS_DIR = CANARY_DIR / "annotations"
+
+ZENODO_URL = "https://zenodo.org/api/records/6521932/files/{}/content"
+AUDIO_ZIP = "M1-2016-sping_audio.zip"  # sic, typo in the Zenodo record
+# Fixed so that the HPO (train split) and the final evaluation (test split) always see the same songs
+CANARY_SPLIT_SEED = 0
+# labels removed from the phrases of the songs by default (song_phrases): silences, noises, calls
+IGNORED_LABELS = ("SIL", "TRASH", "call")
+SILENCE_GAP = 0.005  # s, phrases further apart than this are separated by a silence (load_songs)
+# sampling rate of the whole songs of load_songs: the native one of all the recordings (not resampled), as Trouvain &
+# Hinaut (ICANN 2021), MFCC up to 8 kHz
+SONGS_SAMPLING_RATE = 44100
+
+
+def canary_mfcc_config(sampling_rate):
+    """
+    MFCC features used for canary songs by Trouvain & Hinaut (ICANN 2021, ReservoirPy tutorial 3), given at 44.1 kHz:
+    23 ms window, 11.6 ms hop, 500-8000 Hz, 13 MFCC + delta + delta-delta. Window sizes are rescaled to sampling_rate.
+    """
+    scale = sampling_rate / 44100
+    return dict(sr=sampling_rate, n_mfcc=13, win_length=round(1024 * scale), hop_length=round(512 * scale),
+                n_fft=round(2048 * scale), fmin=500, fmax=min(8000, sampling_rate / 2), lifter=40, deltas=True)
+
+
+def songs_mfcc(audios, config, nb_jobs=-1):
+    """
+    (T, features) MFCC of each audio (1D) with config (canary_mfcc_config: librosa arguments of the mel spectrogram and
+    of the MFCC, "deltas" to append the delta and delta-delta features, and "top_db": floor of the dB at top_db below
+    the maximum of the whole audio, librosa's default 80, None: no floor, the maximum depending on the whole audio, its
+    future included). (hag.datasets.spectral_decomposition.generate_multivariate_dataset of the canary branch of hag.)
+    """
+    from librosa import power_to_db
+    from librosa.feature import delta, melspectrogram, mfcc
+
+    def song_mfcc(audio):
+        mel = dict(config)
+        add_deltas = mel.pop("deltas", False)
+        top_db = mel.pop("top_db", 80.0)
+        mfcc_args = {key: mel.pop(key) for key in ("sr", "n_mfcc", "dct_type", "norm", "lifter") if key in mel}
+        with warnings.catch_warnings():
+            # audios shorter than n_fft are zero-padded by librosa, which is fine: don't warn for each of them
+            warnings.filterwarnings("ignore", message="n_fft=.* is too large for input signal")
+            S = power_to_db(melspectrogram(y=audio, sr=mfcc_args.get("sr", 22050), **mel), top_db=top_db)
+        features = mfcc(S=S, **mfcc_args)
+        if add_deltas:
+            features = np.concatenate([features, delta(features, mode="wrap"), delta(features, order=2, mode="wrap")])
+        return features.T
+
+    return Parallel(n_jobs=nb_jobs)(delayed(song_mfcc)(audio) for audio in audios)
+
+
+def download_canary_if_needed():
+    """(directory of the annotations, directory of the audio), the audio downloaded from Zenodo if needed."""
+    audio_dir = CANARY_DIR / "audio"
+    if not any(audio_dir.rglob("*.wav")):
+        audio_dir.mkdir(parents=True, exist_ok=True)
+        zip_path = CANARY_DIR / AUDIO_ZIP
+        print(f"Downloading {AUDIO_ZIP} to {zip_path} ...")  # (~855 MB)
+        urllib.request.urlretrieve(ZENODO_URL.format(AUDIO_ZIP), str(zip_path))
+        with zipfile.ZipFile(zip_path, "r") as z:
+            z.extractall(audio_dir)
+        zip_path.unlink(missing_ok=True)
+    return ANNOTATIONS_DIR, audio_dir
+
+
+def build_phrase_sequences(annotations, ignored_labels=("SIL", "TRASH"), merge_repeats=False, end_label=None):
+    """
+    Turn the phrase annotations into (current phrase, next label) pairs, song by song.
+
+    Parameters:
+    - annotations: DataFrame with columns "wave", "start", "end", "syll" (one row per annotated segment).
+    - ignored_labels: labels removed from the sequence before pairing (they are neither inputs nor targets),
+      e.g. A -> SIL -> B becomes the pair (A, B).
+    - merge_repeats: if True, consecutive segments with the same label are merged into one phrase
+      (A -> A -> B becomes A -> B). If False, A -> A is kept as a valid transition.
+    - end_label: if given (e.g. "END"), the last phrase of each song gets this target; otherwise it is dropped.
+
+    Returns a DataFrame with one row per instance: "wave", "start", "end", "current", "next".
+    """
+    pairs = []
+    for wave, song in annotations.groupby("wave", sort=True):
+        song = song.sort_values("start")
+        song = song[~song["syll"].isin(ignored_labels)]
+        phrases = list(song[["start", "end", "syll"]].itertuples(index=False, name=None))
+
+        if merge_repeats:
+            merged = []
+            for start, end, label in phrases:
+                if merged and merged[-1][2] == label:
+                    merged[-1] = (merged[-1][0], end, label)
+                else:
+                    merged.append((start, end, label))
+            phrases = merged
+
+        for k, (start, end, label) in enumerate(phrases):
+            if k + 1 < len(phrases):
+                next_label = phrases[k + 1][2]
+            elif end_label is not None:
+                next_label = end_label
+            else:
+                continue
+            pairs.append((wave, start, end, label, next_label))
+
+    return pd.DataFrame(pairs, columns=["wave", "start", "end", "current", "next"])
+
+
+def annotations_of_songs():
+    """Annotations of all the songs: one row per annotated segment, columns "wave", "start", "end", "syll"."""
+    annotations_dir, _ = download_canary_if_needed()
+    return pd.concat([pd.read_csv(f, index_col=0) for f in sorted(annotations_dir.rglob("*.csv"))])
+
+
+def song_phrases(annotations, wave, ignored_labels=IGNORED_LABELS):
+    """[(start, end, label)] of the phrases of a song: segments of ignored_labels removed, repeated labels merged."""
+    song = annotations[annotations["wave"] == wave].sort_values("start")
+    song = song[~song["syll"].isin(ignored_labels)]
+    phrases = []
+    for start, end, label in song[["start", "end", "syll"]].itertuples(index=False, name=None):
+        if phrases and phrases[-1][2] == label:
+            phrases[-1] = (phrases[-1][0], end, label)
+        else:
+            phrases.append((start, end, label))
+    return phrases
+
+
+def phrase_boundaries(phrases):
+    """[(time, silence)] of the boundaries between the phrases [(start, end, label)] of a song: end of each phrase but
+    the last, and whether a silence (more than SILENCE_GAP) separates it from the next one."""
+    return [(prev[1], nxt[0] - prev[1] > SILENCE_GAP) for prev, nxt in zip(phrases[:-1], phrases[1:])]
+
+
+def split_canary_songs(waves, test_split=0.2, seed=CANARY_SPLIT_SEED):
+    """
+    Train/test split of the canary songs (GroupShuffleSplit by song: test_split of the songs in the test set).
+    waves: song of each instance (or the song names). Returns the sorted train and test songs.
+    """
+    waves = np.asarray(waves)
+    gss = GroupShuffleSplit(n_splits=1, test_size=test_split, random_state=seed)
+    train_idx, test_idx = next(gss.split(waves, groups=waves))
+    return sorted(set(waves[train_idx])), sorted(set(waves[test_idx]))
+
+
+def load_canary_dataset(test_split=0.2, seed=CANARY_SPLIT_SEED, target_sampling_rate=16000, ignored_labels=("SIL", "TRASH"),
+                        merge_repeats=False, end_label=None):
+    """
+    Load the canary dataset as a next-phrase classification problem (the Canary task of hag).
+
+    The train/test split is done by song, so that phrases of the same song never end up on both sides.
+
+    Returns:
+    - sampling_rate: sampling rate of the returned audio.
+    - X_train, X_test: lists of (T, 1) float arrays, raw audio of the current phrase.
+    - Y_train, Y_test: one-hot encoded label of the next phrase.
+    - groups: song id of each training instance (for StratifiedGroupKFold).
+    - classes: label names, in the order of the one-hot columns.
+    """
+    _, audio_dir = download_canary_if_needed()
+
+    annotations = annotations_of_songs()
+    pairs = build_phrase_sequences(annotations, ignored_labels, merge_repeats, end_label)
+    wav_paths = {path.name: path for path in audio_dir.rglob("*.wav")}
+
+    X = []
+    for wave, song_pairs in pairs.groupby("wave", sort=False):
+        audio, sampling_rate = sf.read(wav_paths[wave], dtype="float32", always_2d=True)
+        audio = audio.mean(axis=1)  # mono
+        if target_sampling_rate is not None and target_sampling_rate != sampling_rate:
+            import librosa
+            audio = librosa.resample(audio, orig_sr=sampling_rate, target_sr=target_sampling_rate)
+            sampling_rate = target_sampling_rate
+        for start, end in song_pairs[["start", "end"]].itertuples(index=False, name=None):
+            X.append(audio[int(start * sampling_rate):int(end * sampling_rate)].reshape(-1, 1))
+    # pairs are already contiguous per song, so X is in the same order as pairs
+
+    X = np.array(X, dtype=object)
+    groups = pairs["wave"].to_numpy()
+
+    le = LabelEncoder()
+    Y_encoded = le.fit_transform(pairs["next"])
+    ohe = OneHotEncoder(sparse_output=False)
+    Y_one_hot = ohe.fit_transform(Y_encoded.reshape(-1, 1))
+
+    train_songs, test_songs = split_canary_songs(groups, test_split, seed)
+    train_idx, test_idx = np.flatnonzero(np.isin(groups, train_songs)), np.flatnonzero(np.isin(groups, test_songs))
+
+    print("Number of songs =", len(np.unique(groups)))
+    print("Number of instances (train / test) =", len(train_idx), "/", len(test_idx))
+    print("Number of classes =", len(le.classes_))
+
+    return (sampling_rate, list(X[train_idx]), list(X[test_idx]), Y_one_hot[train_idx], Y_one_hot[test_idx],
+            groups[train_idx], le.classes_)
+
+
+def load_songs():
+    """
+    Whole songs with their train/test split by song (split_canary_songs, the same songs as load_canary_dataset), mono
+    audio at SONGS_SAMPLING_RATE. Returns (songs, train_songs, test_songs): songs[wave] = dict(audio,
+    phrases=[(start, end, label)] (song_phrases), boundaries=[(time, silence)]) (boundaries between the phrases, silent
+    or not).
+    """
+    _, audio_dir = download_canary_if_needed()
+    annotations = annotations_of_songs()
+    train_songs, test_songs = split_canary_songs(build_phrase_sequences(annotations)["wave"])
+
+    wav_paths = {path.name: path for path in audio_dir.rglob("*.wav")}
+    songs = {}
+    for wave in train_songs + test_songs:
+        phrases = song_phrases(annotations, wave)
+        boundaries = phrase_boundaries(phrases)
+
+        audio, native_rate = sf.read(wav_paths[wave], dtype="float32", always_2d=True)
+        audio = audio.mean(axis=1)
+        if native_rate != SONGS_SAMPLING_RATE:
+            raise ValueError(f"{wave}: recorded at {native_rate} Hz, the songs are at {SONGS_SAMPLING_RATE} Hz")
+        songs[wave] = dict(audio=audio, phrases=phrases, boundaries=boundaries)
+    return songs, train_songs, test_songs
+

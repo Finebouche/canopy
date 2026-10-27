@@ -1,0 +1,55 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "canopy"
+version = "0.1.0"
+description = "Reservoir computing with Hebbian adaptive growth (HAG) on canary songs: next-phrase prediction and syllable classification."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [
+  { name = "Tanguy Cazalets" },
+]
+dependencies = [
+  # HAG: reservoirs, HAG learning, JAX nodes (branch main)
+  "hag @ git+https://github.com/Finebouche/hag.git@main",
+  "jax",
+  "joblib",
+  "librosa",
+  "matplotlib",
+  "numpy",
+  "optuna",
+  "pandas",
+  # Ridge(solver=...) of the readouts: branch ridge-solvers of the fork (reservoirpy PR #261), until it is released;
+  # installed in editable mode, as for hag
+  "reservoirpy",
+  "scikit-learn",
+  "scipy",
+  "soundfile",
+]
+
+[project.optional-dependencies]
+notebooks = [
+  "anywidget",
+  "ipywidgets",
+  "jupyterlab",
+  "plotly",
+  "traitlets",
+  "umap-learn",
+]
+
+[project.urls]
+Repository = "https://github.com/Finebouche/canopy"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+  "canary",
+  "canary.*",
+]
+exclude = [
+  "outputs",
+  "outputs.*",
+]

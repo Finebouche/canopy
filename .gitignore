@@ -1,0 +1,28 @@
+# Project
+**/__pycache__/
+*.py[cod]
+.DS_Store
+**/.DS_Store
+.idea/
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+.jupyter/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+CLAUDE.md
+
+# Dataset: audio of the Zenodo record and MFCC caches (the annotations, corrected, are tracked)
+/canary/datasets/Canary/*
+!/canary/datasets/Canary/annotations/
+
+# outputs/canary: Optuna databases and parts of the jobs (only the result CSVs are tracked)
+/outputs/canary/studies/
+/outputs/canary/*_parts/
+/outputs/canary/*/studies/
+/outputs/canary/*/*_parts/
+
+# Slurm logs and task lists of the jobs
+/slurm/logs/
+/slurm/tasks/
