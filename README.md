@@ -45,18 +45,20 @@ optimized with Optuna on the train songs, and evaluated on the test songs with p
 ---
 ## 🚀 Setup
 
-canopy uses the environment of hag (`hag_env`, see the [hag repository](https://github.com/Finebouche/hag)), with hag
-and reservoirpy installed in editable mode:
+The environment (`environment.yml`) installs, in editable mode, next to the repository:
 
-- hag, branch `main`;
-- reservoirpy, a branch based on `v0.4.3-dev` with `HAGReservoir` and the solvers of `Ridge` (branch `ridge-solvers` of
-  the fork, reservoirpy PR #261).
+- reservoirpy (`../../Autres/reservoirpy`): a branch based on `v0.4.3-dev` with `HAGReservoir` and the solvers of
+  `Ridge` (branch `ridge-solvers` of the fork, reservoirpy PR #261);
+- then hag (`../hag`, branch `main`, the [hag repository](https://github.com/Finebouche/hag)) and canopy, without
+  their dependencies (hag pins another version of reservoirpy).
 
 ```bash
-micromamba activate hag_env
-pip install -e ../hag
-pip install -e ".[notebooks]"
+micromamba env create -f environment.yml
+micromamba activate canopy_env
+pip install --no-deps -e ../hag -e .
 ```
+
+The environment of hag (`hag_env`) works too, with `PYTHONPATH=$PWD`.
 
 The audio (~855 MB) is downloaded from Zenodo at the first loading of the songs, and the MFCC are computed once and
 cached (`canary/datasets/Canary/boundary_features_*.pkl`).

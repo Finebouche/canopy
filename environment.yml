@@ -1,0 +1,41 @@
+name: canopy_env
+channels:
+  - conda-forge
+  - pytorch
+dependencies:
+  - python>=3.12
+  - numpy
+  - scipy
+  - matplotlib
+  - pandas
+  - scikit-learn
+  - librosa
+  - pysoundfile
+  - joblib
+  - optuna
+  - tqdm
+  # imported by the modules of hag that canopy uses (reservoirs, HAG, metrics)
+  - aeon>=0.10
+  - dcor
+  - graph-tool
+  - imageio
+  - networkx
+  - seaborn
+  - statsmodels
+  # notebook
+  - jupyterlab
+  - ipywidgets
+  - plotly
+  - umap-learn
+  - pip
+  - pip:
+    - jax
+    - torch
+    - torchaudio
+    - anywidget
+    # development version of reservoirpy (local fork, branch based on v0.4.3-dev with HAGReservoir and the solvers of
+    # Ridge: ridge-solvers, reservoirpy PR #261), installed in editable mode. Path relative to the repository root,
+    # where the environment is created (micromamba env create -f environment.yml)
+    - -e ../../Autres/reservoirpy
+# Then hag (branch main) and canopy, in editable mode and without their dependencies (hag pins another version of
+# reservoirpy): micromamba activate canopy_env && pip install --no-deps -e ../hag -e .
