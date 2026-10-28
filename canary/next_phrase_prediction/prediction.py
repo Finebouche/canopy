@@ -38,7 +38,10 @@ With the studies of the readout (HAG_CANARY_TAIL_HPO=1, canary.next_phrase_predi
 condition are instead: "last" -> "last", that of its study (column hpo; for the conditions without study, mfcc and
 hybrids, the best of TAIL_READOUTS in the cross-validation) and, for each kind of tail readout (training rows "tail"
 or "tail_mean", decision "last" or "tail_mean"), the length of tail of the best cross-validation accuracy (column
-best_tail), the coefficients of all of them chosen by the same cross-validation.
+best_tail), the coefficients of all of them chosen by the same cross-validation. With HAG_CANARY_TAIL_HPO=2 (TAIL_SEPARATE),
+the tails of the training rows (tail) and of the decision (decision_tail) are two parameters of the studies, and
+best_tail is the best pair of tails of each kind of readout; HAG_CANARY_DECISION_TAIL does the same for lists of
+readouts (default: the tail of the training rows).
 Metrics as Maxime's: accuracy and macro F1 of all the points,
 without the last one of each song ("skip_last": its target is END), and of the phrases only ("no_end": points whose
 target is a phrase, argmax over the phrases).
@@ -75,7 +78,7 @@ from reservoirpy.nodes import Ridge
 from canary.hpo import CV_SEED, FOLD_SEED, N_FOLDS
 from canary.models import CHUNK, build, state_chunks, states
 from canary.next_phrase_prediction.evaluate import conditions
-from canary.next_phrase_prediction.hpo import CALLS, MAX_TAIL, RESET, STUDY_PREFIX, TAIL_HPO, TASK
+from canary.next_phrase_prediction.hpo import CALLS, MAX_TAIL, RESET, STUDY_PREFIX, TAIL_HPO, TAIL_SEPARATE, TASK
 from canary.datasets.songs import SONGS_SAMPLING_RATE, annotations_of_songs, canary_mfcc_config, song_phrases
 
 SIZES = [500, 1000]
@@ -85,27 +88,35 @@ MAX_ORDER = 10
 READOUT_ORDER = int(os.environ.get("HAG_CANARY_READOUT_ORDER", "1"))  # 1: linear ridge readout, n: generalized readout
 RIDGE_SOLVER = os.environ.get("HAG_CANARY_RIDGE_SOLVER", "svd")  # (of reservoirpy.nodes.Ridge, linear readout)
 TAIL_MODES = ("tail", "tail_mean")  # (those of the last HAG_CANARY_TAIL frames of the windows)
-BASE_READOUT = ("last", "last", None)  # (training rows, decision, tail): the last state of the window only
+BASE_READOUT = ("last", "last", None, None)  # (training rows, decision, tail, decision tail): the last state only
 
 
-def readout_of(points, decision, tail):
-    """The readout (points, decision, tail), the decision by default that of the training rows, the tail None when
-    neither uses it."""
+def readout_of(points, decision, tail, decision_tail=None):
+    """The readout (points, decision, tail, decision tail), the decision by default that of the training rows, the tail
+    None when neither uses it, the tail of the decision by default that of the training rows (None for the decision on
+    the last state)."""
     decision = decision or {"tail": "tail_mean"}.get(points, points)
     if points not in ("last",) + TAIL_MODES or decision not in ("last", "tail_mean"):
         raise ValueError(f"Unknown readout {points} -> {decision}: HAG_CANARY_POINTS last, tail or tail_mean, "
                          f"HAG_CANARY_DECISION last or tail_mean")
     if READOUT_ORDER > 1 and points == "tail":
         raise ValueError("The generalized readout needs a single row per point (HAG_CANARY_POINTS last or tail_mean)")
-    return points, decision, tail if points in TAIL_MODES or decision == "tail_mean" else None
+    return (points, decision, tail if points in TAIL_MODES or decision == "tail_mean" else None,
+            (decision_tail or tail) if decision == "tail_mean" else None)
 
 
 def readout_of_params(params):
     """Readout of the parameters "readout:*" of a study of the readout (canary.next_phrase_prediction.hpo,
-    TAIL_HPO), None without them: "last" -> "last" for a tail of 1 frame."""
+    TAIL_HPO), None without them: "last" -> "last" for a tail of 1 frame. With "readout:decision_tail" (TAIL_SEPARATE),
+    the tail of the training rows ("readout:tail", 1: the last state) and that of the decision are separate."""
     tail = params.get("readout:tail")
     if tail is None:
         return None
+    decision_tail = params.get("readout:decision_tail")
+    if decision_tail is not None:
+        points = "last" if tail == 1 else "tail_mean" if params["readout:train_mean"] else "tail"
+        return readout_of(points, "last" if decision_tail == 1 else "tail_mean", int(tail) if tail > 1 else None,
+                          int(decision_tail) if decision_tail > 1 else None)
     if tail == 1:
         return BASE_READOUT
     return readout_of("tail_mean" if params["readout:train_mean"] else "tail",
@@ -113,13 +124,20 @@ def readout_of_params(params):
 
 
 # all the readouts of the studies of the readout (TAIL_HPO), "last" -> "last" first
-TAIL_READOUTS = [BASE_READOUT] + [readout_of(points, decision, tail) for points in TAIL_MODES
-                                  for decision in ("last", "tail_mean") for tail in range(2, MAX_TAIL + 1)]
+# (TAIL_SEPARATE: all the pairs of a training tail, "last" or 2 to MAX_TAIL frames, and a decision tail)
+TAIL_READOUTS = list(dict.fromkeys(
+    [BASE_READOUT] + ([readout_of(points, decision, tail, decision_tail)
+                       for points, tail in [("last", None)] + [(m, t) for m in TAIL_MODES for t in range(2, MAX_TAIL + 1)]
+                       for decision, decision_tail in [("last", None)] + [("tail_mean", t) for t in range(2, MAX_TAIL + 1)]]
+                      if TAIL_SEPARATE else [readout_of(points, decision, tail) for points in TAIL_MODES
+                                             for decision in ("last", "tail_mean") for tail in range(2, MAX_TAIL + 1)])))
+# (HAG_CANARY_DECISION_TAIL: tails of the decision, by default that of the training rows)
 READOUTS = TAIL_READOUTS if TAIL_HPO and READOUT_ORDER == 1 else list(dict.fromkeys(
-    readout_of(points, decision, int(tail))
+    readout_of(points, decision, int(tail), int(decision_tail) if decision_tail else None)
     for points in os.environ.get("HAG_CANARY_POINTS", "last").split(",")
     for decision in os.environ.get("HAG_CANARY_DECISION", "").split(",")
-    for tail in os.environ.get("HAG_CANARY_TAIL", "10").split(",")))
+    for tail in os.environ.get("HAG_CANARY_TAIL", "10").split(",")
+    for decision_tail in os.environ.get("HAG_CANARY_DECISION_TAIL", "").split(",")))
 # audio after the time of a frame in its features: half a window
 DELAY = canary_mfcc_config(SONGS_SAMPLING_RATE)["win_length"] / 2 / SONGS_SAMPLING_RATE
 
@@ -178,13 +196,13 @@ def point_windows(reservoirs, songs, waves):
 
 def decision_of(readout):
     """(decision, tail) of a readout: the states of its decision."""
-    points, decision, tail = readout
-    return decision, tail if decision == "tail_mean" else None
+    points, decision, tail, decision_tail = readout
+    return decision, decision_tail if decision == "tail_mean" else None
 
 
 def training_of(readout):
     """(training rows, tail) of a readout: its training data."""
-    points, decision, tail = readout
+    points, decision, tail, decision_tail = readout
     return points, tail if points in TAIL_MODES else None
 
 
@@ -350,11 +368,12 @@ def baselines():
 # ------------------------------------------------ reservoirs ------------------------------------------------------
 def readout_name(readout):
     """Suffix of the results of a single readout ("" for "last" -> "last")."""
-    points, decision, tail = readout
+    points, decision, tail, decision_tail = readout
     default = readout_of(points, None, tail)[1]
     return ((f"_points_{points}{tail if points in TAIL_MODES else ''}" if points != "last" else "")
-            + (f"_decision_{decision}{tail if decision == 'tail_mean' and points not in TAIL_MODES else ''}"
-               if decision != default else ""))
+            + (f"_decision_{decision}{decision_tail if decision == 'tail_mean' and points not in TAIL_MODES else ''}"
+               if decision != default else "")
+            + (f"_decision_tail{decision_tail}" if decision == default == "tail_mean" and decision_tail != tail else ""))
 
 
 NAME = (f"{STUDY_PREFIX}hpo" + (f"_order{READOUT_ORDER}" if READOUT_ORDER > 1 else "")
@@ -395,36 +414,46 @@ def run(todo, nb_seeds):
         accuracies = {readout: [] for readout in readouts}
         for seed in range(nb_seeds):
             results = evaluate(model, params, size, ridges, songs, train_songs, test_songs, frame, classes, seed)
-            for (points, decision, tail), result in results.items():
+            for readout, result in results.items():
+                points, decision, tail, decision_tail = readout
                 columns = {} if READOUTS == [BASE_READOUT] else dict(points=points, decision=decision, tail=tail,
-                                                                     **columns_of.get((points, decision, tail), {}))
+                                                                     decision_tail=decision_tail,
+                                                                     **columns_of.get(readout, {}))
                 rows.append(dict(condition=condition, network_size=size, seed=seed, **columns,
-                                 ridge=ridges[points, decision, tail], cv_accuracy=chosen[points, decision, tail][1],
-                                 **result))
-                accuracies[points, decision, tail].append(result["accuracy"])
+                                 ridge=ridges[readout], cv_accuracy=chosen[readout][1], **result))
+                accuracies[readout].append(result["accuracy"])
         for readout, accuracy in accuracies.items():
-            print(f"{condition} ({size}) {readout[0]} -> {readout[1]}{'' if readout[2] is None else f' ({readout[2]})'}:"
+            tails = [t for t in dict.fromkeys(readout[2:]) if t is not None]
+            print(f"{condition} ({size}) {readout[0]} -> {readout[1]}{f' ({'/'.join(map(str, tails))})' if tails else ''}:"
                   f" accuracy {100 * np.mean(accuracy):.2f} ± {100 * np.std(accuracy):.2f} % "
                   f"(ridge {ridges[readout]:.0e})", flush=True)
     return pd.DataFrame(rows)
+
+
+def filled_tails(results):
+    """The results with the tails of the training and of the decision filled (-1 for none; the decision tail of the
+    results without this column, before TAIL_SEPARATE, is the tail of the readout)."""
+    decision_tail = results["decision_tail"] if "decision_tail" in results else results["tail"]
+    return results.assign(tail=results["tail"].fillna(-1), decision_tail=decision_tail.fillna(-1))
 
 
 def compare_readouts(results, metric="accuracy"):
     """Paired comparisons by seed of the metric of each readout with that of "last" -> "last" (readout - last), for
     each condition and size."""
     keys = ["condition", "network_size", "seed"]
-    readouts = results.assign(tail=results["tail"].fillna(-1))
+    readouts = filled_tails(results)
     base = readouts[(readouts.points == "last") & (readouts.decision == "last")].set_index(keys)[metric]
     rows = []
-    for (condition, size, points, decision, tail), group in readouts.groupby(
-            ["condition", "network_size", "points", "decision", "tail"]):
+    for (condition, size, points, decision, tail, decision_tail), group in readouts.groupby(
+            ["condition", "network_size", "points", "decision", "tail", "decision_tail"]):
         if points == decision == "last":
             continue
         diff = (group.set_index(keys)[metric] - base).dropna().to_numpy()
         if len(diff) == 0:
             continue
         rows.append(dict(condition=condition, network_size=size, points=points, decision=decision,
-                         tail=None if tail < 0 else int(tail), nb_seeds=len(diff), mean=group[metric].mean(),
+                         tail=None if tail < 0 else int(tail), decision_tail=None if decision_tail < 0 else int(decision_tail),
+                         nb_seeds=len(diff), mean=group[metric].mean(),
                          mean_diff=diff.mean(), wilcoxon_p=wilcoxon(diff).pvalue if np.any(diff != 0) else 1.0,
                          a_better=int((diff > 0).sum())))
     return pd.DataFrame(rows)
@@ -446,11 +475,11 @@ def save(results):
         readout_comparisons.to_csv(OUTPUTS / f"{NAME}_readout_comparisons.csv", index=False)
         print("Saved to", OUTPUTS / f"{NAME}_readout_comparisons.csv")
     else:
-        comparisons = pd.concat([compare(group, metric="accuracy").assign(points=points, decision=decision,
-                                                                           tail=None if tail < 0 else int(tail))
-                                 for (points, decision, tail), group in results.assign(
-                                     tail=results["tail"].fillna(-1)).groupby(["points", "decision", "tail"])],
-                                ignore_index=True)
+        comparisons = pd.concat([compare(group, metric="accuracy").assign(
+            points=points, decision=decision, tail=None if tail < 0 else int(tail),
+            decision_tail=None if decision_tail < 0 else int(decision_tail))
+            for (points, decision, tail, decision_tail), group in filled_tails(results).groupby(
+                ["points", "decision", "tail", "decision_tail"])], ignore_index=True)
         readout_comparisons = compare_readouts(results)
         print(readout_comparisons.round(4).to_string(index=False))
         readout_comparisons.to_csv(OUTPUTS / f"{NAME}_readout_comparisons.csv", index=False)

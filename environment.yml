@@ -38,6 +38,6 @@ dependencies:
     # where the environment is created (micromamba env create -f environment.yml)
     - -e ../../Autres/reservoirpy
     - jupyterlab-execute-time
-    - jupyterlab-optuna-
+    - jupyterlab-optuna
 # Then hag (branch main) and canopy, in editable mode and without their dependencies (hag pins another version of
 # reservoirpy): micromamba activate canopy_env && pip install --no-deps -e ../hag -e .

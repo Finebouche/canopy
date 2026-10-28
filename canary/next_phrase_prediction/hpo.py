@@ -25,6 +25,9 @@ With HAG_CANARY_TAIL_HPO=1 ("next_phrase_..._tail_*" studies), the readout is se
 at least 2 frames, "readout:train_mean" (training rows: the mean of the tail, "tail_mean", or its frames, "tail") and
 "readout:decision_mean" (decision on the mean of the tail, "tail_mean", or on the last state, "last"), see
 canary.next_phrase_prediction.prediction.readout_of_params.
+With HAG_CANARY_TAIL_HPO=2 ("next_phrase_..._tail2_*" studies), the tails of the training rows and of the decision are
+two parameters: "readout:tail" (1: the last state only, "last"), "readout:train_mean" (for a tail of at least 2 frames)
+and "readout:decision_tail" (1 to MAX_TAIL frames, 1: decision on the last state, else on the mean of the tail).
 (The syllable classification has its own package, canary.syllables_classification.)
 
 Usage: python -m canary.next_phrase_prediction.hpo <model> <size>   (N_TRIALS trials)
@@ -52,10 +55,12 @@ LEAK = TASK != "boundaries" and os.environ.get("HAG_CANARY_LEAK") == "1"
 CALLS = TASK == "next_phrase" and os.environ.get("HAG_CANARY_CALLS") == "1"
 RESET = TASK == "next_phrase" and os.environ.get("HAG_CANARY_RESET") == "1"
 # next-phrase prediction: readout (length of the tail, means in training and decision) in the search
-TAIL_HPO = TASK == "next_phrase" and os.environ.get("HAG_CANARY_TAIL_HPO") == "1"
+TAIL_HPO = TASK == "next_phrase" and os.environ.get("HAG_CANARY_TAIL_HPO") in ("1", "2")
+TAIL_SEPARATE = TAIL_HPO and os.environ.get("HAG_CANARY_TAIL_HPO") == "2"  # (a tail for the training, one for the decision)
 MAX_TAIL = 10
 # prefix of the studies and of the results of the next-phrase prediction
-STUDY_PREFIX = (f"{TASK}_" + "calls_" * CALLS + "reset_" * RESET + "leak_" * LEAK + "tail_" * TAIL_HPO
+STUDY_PREFIX = (f"{TASK}_" + "calls_" * CALLS + "reset_" * RESET + "leak_" * LEAK + "tail_" * (TAIL_HPO and not TAIL_SEPARATE)
+                + "tail2_" * TAIL_SEPARATE
                 if TASK != "boundaries" else "")
 
 
@@ -124,6 +129,9 @@ def objective_function(model, size, songs, train_songs, frame, classes=None):
             params["readout:tail"] = trial.suggest_int("readout:tail", 1, MAX_TAIL)
             if params["readout:tail"] > 1:
                 params["readout:train_mean"] = trial.suggest_categorical("readout:train_mean", [True, False])
+            if TAIL_SEPARATE:
+                params["readout:decision_tail"] = trial.suggest_int("readout:decision_tail", 1, MAX_TAIL)
+            elif params["readout:tail"] > 1:
                 params["readout:decision_mean"] = trial.suggest_categorical("readout:decision_mean", [True, False])
             readout = readout_of_params(params)
             ridge, accuracy = choose_ridges(model, params, size, songs, train_songs, frame, classes, [readout])[readout]
