@@ -1,0 +1,2 @@
+condition,network_size,points,decision,tail,nb_seeds,mean,mean_diff,wilcoxon_p,a_better
+mfcc,0,tail_mean,tail_mean,5,10,0.48216297408937275,0.12842658655651512,0.001953125,10

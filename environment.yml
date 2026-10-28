@@ -37,5 +37,7 @@ dependencies:
     # Ridge: ridge-solvers, reservoirpy PR #261), installed in editable mode. Path relative to the repository root,
     # where the environment is created (micromamba env create -f environment.yml)
     - -e ../../Autres/reservoirpy
+    - jupyterlab-execute-time
+    - jupyterlab-optuna-
 # Then hag (branch main) and canopy, in editable mode and without their dependencies (hag pins another version of
 # reservoirpy): micromamba activate canopy_env && pip install --no-deps -e ../hag -e .
