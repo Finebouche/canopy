@@ -9,6 +9,8 @@
 #     canary.syllables_classification.classification [sizes] [nb_seeds] (reservoirs of the syllable studies);
 #   - HAG_CANARY_MODE=next_phrase: prediction of the next phrase python -m canary.next_phrase_prediction.prediction [sizes]
 #     [nb_seeds] (reservoirs of the next-phrase studies, HAG_CANARY_TASK=next_phrase);
+#   - HAG_CANARY_MODE=readout_rules: learning rules of the readout of the next phrase python -m
+#     canary.next_phrase_prediction.readout_rules (slurm/submit_readout_rules.sh);
 #   - HAG_CANARY_MODE=certainty: certainty along the phrases python -m canary.syllables_classification.certainty [size]
 #     [conditions] [nb_seeds] (canary.next_phrase_prediction.certainty with HAG_CANARY_TASK=next_phrase).
 # The Optuna databases are in /dev/shm during the job (SQLite does not support the network file systems well, and the
@@ -72,6 +74,9 @@ elif [ "${HAG_CANARY_MODE:-hpo}" = next_phrase ]; then
     # in a job array: one condition ("<condition> <size>" of HAG_CANARY_TASKS)
     if [ -n "${HAG_CANARY_TASKS:-}" ]; then set -- run "$@"; fi
     python -m canary.next_phrase_prediction.prediction "$@"
+elif [ "${HAG_CANARY_MODE:-hpo}" = readout_rules ]; then
+    if [ -n "${HAG_CANARY_TASKS:-}" ]; then set -- run "$@"; fi
+    python -m canary.next_phrase_prediction.readout_rules "$@"
 elif [ "${HAG_CANARY_TASK:-}" = syllables ]; then
     python -m canary.syllables_classification.hpo "$@"
 else
