@@ -4,12 +4,14 @@
 # resource), then the merge of their results and the paired comparisons with ridge. Run from the root of a checkout of
 # canopy:
 #   HAG_CANARY_TASK=next_phrase HAG_CANARY_CALLS=1 HAG_CANARY_TAIL_HPO=1 [HAG_CANARY_LEAK=1] bash slurm/submit_readout_rules.sh [sizes] [nb_seeds]
-#   (default 500,1000 and 10 seeds)
+#   (default 500,1000 and 10 seeds; HAG_CANARY_READOUT_RULES and HAG_CANARY_RULES_SUFFIX passed to the jobs, TIME the
+#   time limit of each job, default 1 day)
 set -euo pipefail
 SIZES=${1:-500,1000}
 NB_SEEDS=${2:-10}
 MAX_RUNNING=${MAX_RUNNING:-40}
 CPUS=${CPUS:-8}
+TIME=${TIME:-1-00:00:00}
 NODES=(--constraint=zonda)
 cd "$(dirname "$0")/.."
 mkdir -p slurm/logs slurm/tasks
@@ -26,7 +28,7 @@ HAG_CANARY_STUDIES=$PWD/outputs/canary/studies PYTHONPATH=$PWD:${HAG_DIR:-$HOME/
 n=$(wc -l < "$TASKS")
 
 array=$(sbatch --parsable "${NODES[@]}" --array=0-$((n - 1))%$MAX_RUNNING --cpus-per-task=$CPUS --mem=48G \
-    --time=1-00:00:00 --job-name=canary-readout-rules \
+    --time=$TIME --job-name=canary-readout-rules \
     --export=ALL,HAG_CANARY_MODE=readout_rules,HAG_CANARY_WORKERS=1,HAG_CANARY_TASKS="$TASKS" \
     slurm/canary.sbatch "$NB_SEEDS")
 echo "readout rules: job array $array ($n conditions, $TASKS)"

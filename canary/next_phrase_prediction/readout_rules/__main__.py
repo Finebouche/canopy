@@ -5,16 +5,18 @@ same reservoirs: from the least to the most biologically plausible,
     reference of the other tasks;
   - "rls": online recursive least squares (reservoirpy's RLS, the RLS-based FORCE rule of Sussillo & Abbott 2009,
     non-local: each synapse uses the inverse correlation matrix of all the inputs), initial P = I / alpha;
-  - "lms": online least mean squares (reservoirpy's LMS, the LMS-based FORCE rule: local, but each readout needs its exact
-    error), learning rate c / mean ||x||^2 (c the normalized rate, stable below 2);
-  - "eh": the exploratory Hebbian rule of Hoerzer et al. (2014) (canary.eh_readout.EH, the paper's: filtered baselines,
-    a single global binary reward for all the readouts, no teacher), learning rate c / mean ||x||^2;
+  - "lms": online least mean squares (the rule of reservoirpy's LMS, the LMS-based FORCE rule: local, but each readout
+    needs its exact error; trained in JAX, readout_rules.lms), learning rate c / mean ||x||^2 (c the normalized rate,
+    stable below 2);
+  - "eh": the exploratory Hebbian rule of Hoerzer et al. (2014) (the rule of canary.eh_readout.EH, the paper's: filtered
+    baselines, a single global binary reward for all the readouts, no teacher; trained in JAX, readout_rules.eh),
+    learning rate c / mean ||x||^2;
   - "eh_np": the same with the baseline "sample" (node perturbation of Fiete & Seung 2006: the reward compared with
     that of the output without noise on the same input; not the paper's rule, which does not know the noise), global
     reward; "eh_np_local": with a reward for each readout (its own modulatory signal).
 The online rules see the training rows song by song, each song in its time order, the songs in a random order at each
-epoch (pass over the training songs). Their inputs are centered ("center") or standardized ("standardize") with the
-mean and standard deviation of each unit on the training rows (a homeostatic estimate of the mean activity and of the
+epoch (pass over the training songs). Their inputs are centered ("center", RLS only) or standardized ("standardize")
+with the mean and standard deviation of each unit on the training rows (a homeostatic estimate of the mean activity and of the
 gain of each input, local to its synapses): the states have a large common mean and small fluctuations (mean 0.16,
 standard deviation 0.01 per unit for random_ee 500), and without this the online rules learn the direction of the
 mean (accuracy at the level of chance). The paper's EH rule needs slowly changing inputs (its filtered baseline
@@ -29,8 +31,10 @@ accuracy, reservoirs of fold k drawn with the seed CV_SEED + k), then each rule 
 scored on the test songs for each seed (paired comparisons with "ridge"). Rules: HAG_CANARY_READOUT_RULES
 (comma-separated, default all).
 
-Results: outputs/canary/<prefix>readout_rules.csv (one row per condition, size, seed and rule) and
-<prefix>readout_rules_comparisons.csv (each rule - ridge, paired by seed).
+Results: outputs/canary/<prefix>readout_rules<suffix>.csv (one row per condition, size, seed and rule),
+<prefix>readout_rules<suffix>_comparisons.csv (each rule - ridge, paired by seed) and <prefix>readout_rules<suffix>_cv.csv
+(out-of-fold accuracy of each configuration and number of epochs: the learning curves), suffix
+HAG_CANARY_RULES_SUFFIX (default none).
 Usage (HAG_CANARY_TASK=next_phrase HAG_CANARY_TAIL_HPO=1, with the variables of the studies):
   python -m canary.next_phrase_prediction.readout_rules run <condition> <size> [nb_seeds]   one condition
                                                        (slurm/submit_readout_rules.sh), results in <name>_parts
@@ -42,27 +46,29 @@ import sys
 
 import numpy as np
 import pandas as pd
-from reservoirpy.nodes import LMS, RLS
+import jax.numpy as jnp
+from reservoirpy.nodes import RLS
 from scipy.stats import wilcoxon
 from sklearn.model_selection import KFold
 
 from canary.common import OUTPUTS, RIDGES, load_dataset, pretrain_phrases
-from canary.eh_readout import EH
 from canary.hpo import CV_SEED, FOLD_SEED, N_FOLDS
 from canary.models import build
 from canary.next_phrase_prediction.hpo import STUDY_PREFIX, TAIL_HPO, TAIL_SEPARATE
 from canary.next_phrase_prediction.prediction import (NAME, all_conditions, decision_of, fitted_readouts, metrics,
                                                       point_windows, prepare, readout_of, training_of)
+from canary.next_phrase_prediction.readout_rules.eh import EH
+from canary.next_phrase_prediction.readout_rules.lms import LMS
 
 RULES = os.environ.get("HAG_CANARY_READOUT_RULES", "ridge,rls,lms,eh,eh_np,eh_np_local").split(",")
-NORMALIZATIONS = ["center", "standardize"]  # (inputs of the online rules)
-RLS_ALPHAS = 10.0 ** np.arange(-4, 3)
-LMS_RATES = [0.01, 0.03, 0.1, 0.3]  # (normalized: c / mean ||x||^2)
-EH_RATES = [0.1, 0.3, 1.0]
+NORMALIZATIONS = ["center", "standardize"]  # (inputs of RLS; LMS and EH: "standardize", better in all the conditions)
+RLS_ALPHAS = 10.0 ** np.arange(-10, -2)  # (ridge coefficient of the standardized inputs)
+LMS_RATES = [0.003, 0.01, 0.03, 0.1, 0.3]  # (normalized: c / mean ||x||^2)
+EH_RATES = [0.03, 0.1, 0.3, 1.0]
 EH_NOISE = 0.5  # (the paper's)
-EPOCHS = [1, 3, 10, 30, 100, 300]  # (scores of the online rules after these numbers of epochs, the same run)
+EPOCHS = [1, 3, 10, 30, 100, 300, 1000, 3000]  # (scores of the online rules after these numbers of epochs, the same run)
 RLS_EPOCHS = [1]
-RESULTS = f"{STUDY_PREFIX}readout_rules"
+RESULTS = f"{STUDY_PREFIX}readout_rules{os.environ.get('HAG_CANARY_RULES_SUFFIX', '')}"
 PARTS = OUTPUTS / f"{RESULTS}_parts"
 
 
@@ -92,8 +98,8 @@ def configurations(rule):
     if rule == "rls":
         return [(dict(normalization=n, alpha=float(a)), RLS_EPOCHS) for n in NORMALIZATIONS for a in RLS_ALPHAS]
     if rule == "lms":
-        return [(dict(normalization=n, rate=c), EPOCHS) for n in NORMALIZATIONS for c in LMS_RATES]
-    return [(dict(normalization=n, rate=c, noise=EH_NOISE), EPOCHS) for n in NORMALIZATIONS for c in EH_RATES]
+        return [(dict(normalization="standardize", rate=c), EPOCHS) for c in LMS_RATES]
+    return [(dict(normalization="standardize", rate=c, noise=EH_NOISE), EPOCHS) for c in EH_RATES]
 
 
 def normalized(hyper, rows, states, fit):
@@ -124,10 +130,17 @@ def trained(rule, hyper, rows, fit, rng, epochs):
         node = EH(learning_rate=hyper["rate"] / mean_norm, noise=hyper["noise"],
                   reward="per_output" if rule == "eh_np_local" else "global",
                   baseline="filtered" if rule == "eh" else "sample", seed=rng)
+    # (JAX rules: the rows of all the songs fit, the songs in the order of rng at each epoch, as one pass over them)
+    X, Y = (jnp.asarray(np.vstack([rows[w][i] for w in fit])) for i in (0, 1))
+    starts = np.cumsum([0] + [len(rows[w][0]) for w in fit])
     with np.errstate(all="ignore"):  # (diverging rates: their scores are NaN, never chosen)
         for epoch in range(1, max(epochs) + 1):
-            for w in rng.permutation(fit):
-                node.partial_fit(*rows[w])
+            if rule == "rls":
+                for w in rng.permutation(fit):
+                    node.partial_fit(*rows[w])
+            else:
+                order = np.concatenate([np.arange(starts[s], starts[s + 1]) for s in rng.permutation(len(fit))])
+                node.partial_fit(X, Y, order)
             if epoch in epochs:
                 yield epoch, node
 
@@ -138,8 +151,8 @@ def accuracy_counts(scores, true, classes):
 
 
 def choose(model, params, size, songs, train_songs, frame, classes, readout, rules):
-    """{rule: (hyperparameters with "epochs", out-of-fold accuracy)} of the best configuration of each rule, in the
-    3-fold cross-validation by song of the studies."""
+    """({rule: (hyperparameters with "epochs", out-of-fold accuracy)} of the best configuration of each rule, out-of-fold
+    accuracy of each configuration and number of epochs), in the 3-fold cross-validation by song of the studies."""
     correct, total = {}, 0
     for k, (fit_index, val_index) in enumerate(KFold(N_FOLDS, shuffle=True, random_state=FOLD_SEED).split(train_songs)):
         np.random.seed(CV_SEED + k)
@@ -161,15 +174,17 @@ def choose(model, params, size, songs, train_songs, frame, classes, readout, rul
         (_, c, epoch), count = max(((key, count) for key, count in correct.items() if key[0] == rule),
                                    key=lambda item: item[1])
         chosen[rule] = (dict(configurations(rule)[c][0], epochs=epoch), count / total)
-    return chosen
+    curves = pd.DataFrame([dict(rule=rule, **configurations(rule)[c][0], epochs=epoch, cv_accuracy=count / total)
+                           for (rule, c, epoch), count in correct.items()])
+    return chosen, curves
 
 
 def run(todo, nb_seeds):
-    """Results of the rules (RULES) for each condition and seed."""
+    """(results of the rules (RULES) for each condition and seed, their learning curves in the cross-validation)."""
     songs, train_songs, test_songs, frame = load_dataset(top_db=None)
     classes = prepare(songs, train_songs, frame)
     studies = pd.read_csv(OUTPUTS / f"{NAME}.csv")
-    rows = []
+    rows, curves = [], []
     for condition, model, params, _, size in todo:
         study = studies[(studies.condition == condition) & (studies.network_size == size) & studies.hpo.astype(bool)]
         if study.empty:
@@ -177,7 +192,8 @@ def run(todo, nb_seeds):
         points, decision, tail = study.iloc[0][["points", "decision", "tail"]]
         readout = readout_of(points, decision, None if pd.isna(tail) else int(tail))
         print(f"{condition} ({size}): readout {readout}", flush=True)
-        chosen = choose(model, params, size, songs, train_songs, frame, classes, readout, RULES)
+        chosen, curve = choose(model, params, size, songs, train_songs, frame, classes, readout, RULES)
+        curves.append(curve.assign(condition=condition, network_size=size))
         for rule, (hyper, cv_accuracy) in chosen.items():
             print(f"  {rule}: {hyper}, cross-validation accuracy {100 * cv_accuracy:.2f} %", flush=True)
         for seed in range(nb_seeds):
@@ -198,7 +214,7 @@ def run(todo, nb_seeds):
                                  **metrics(scores, true, classes)))
             print(f"  seed {seed}: " + ", ".join(f"{r['rule']} {100 * r['accuracy']:.1f} %" for r in rows[-len(chosen):]),
                   flush=True)
-    return pd.DataFrame(rows)
+    return pd.DataFrame(rows), pd.concat(curves, ignore_index=True)
 
 
 def compare_rules(results, metric="accuracy"):
@@ -231,12 +247,18 @@ if __name__ == "__main__":
         if not todo:
             raise ValueError(f"Unknown condition {condition} ({size})")
         PARTS.mkdir(parents=True, exist_ok=True)
-        run(todo, nb_seeds).to_csv(PARTS / f"{condition}_{size}.csv", index=False)
+        results, curves = run(todo, nb_seeds)
+        results.to_csv(PARTS / f"{condition}_{size}.csv", index=False)
+        curves.to_csv(PARTS / f"{condition}_{size}_cv.csv", index=False)
     elif command == "merge":
-        parts = sorted(PARTS.glob("*.csv"))
+        parts = sorted(part for part in PARTS.glob("*.csv") if not part.stem.endswith("_cv"))
         print(f"{len(parts)} conditions")
         results = pd.concat([pd.read_csv(part) for part in parts], ignore_index=True)
         results.to_csv(OUTPUTS / f"{RESULTS}.csv", index=False)
+        curve_parts = sorted(PARTS.glob("*_cv.csv"))
+        if curve_parts:
+            pd.concat([pd.read_csv(part) for part in curve_parts], ignore_index=True).to_csv(
+                OUTPUTS / f"{RESULTS}_cv.csv", index=False)
         comparisons = compare_rules(results)
         pd.set_option("display.width", 200)
         print(comparisons.round(4).to_string(index=False))
