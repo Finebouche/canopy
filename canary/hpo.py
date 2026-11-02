@@ -1,6 +1,6 @@
 """
 Shared parts of the hyperparameter optimizations of the canary tasks (canary.next_phrase_prediction.hpo,
-canary.syllables_classification.hpo): folds of the cross-validation by song, number of trials, storage of the studies
+canary.syllables_classification.hpo): folds of the cross-validation by song, number of trials (HAG_CANARY_N_TRIALS, default 400), storage of the studies
 (one SQLite database each in STUDIES_DIR: HAG_CANARY_STUDIES, default outputs/canary/studies).
 """
 import os
@@ -14,7 +14,7 @@ STUDIES_DIR = Path(os.environ.get("HAG_CANARY_STUDIES", OUTPUTS / "studies"))
 N_FOLDS = 3
 FOLD_SEED = 0
 CV_SEED = 1000  # matrices of fold k drawn with np.random.seed(CV_SEED + k), the same for all the trials
-N_TRIALS = 400
+N_TRIALS = int(os.environ.get("HAG_CANARY_N_TRIALS", 400))
 
 
 def storage(study_name):

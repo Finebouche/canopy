@@ -28,6 +28,12 @@ canary.next_phrase_prediction.prediction.readout_of_params.
 With HAG_CANARY_TAIL_HPO=2 ("next_phrase_..._tail2_*" studies), the tails of the training rows and of the decision are
 two parameters: "readout:tail" (1: the last state only, "last"), "readout:train_mean" (for a tail of at least 2 frames)
 and "readout:decision_tail" (1 to MAX_TAIL frames, 1: decision on the last state, else on the mean of the tail).
+With HAG_CANARY_HPO_RULE=<rule> (with HAG_CANARY_TAIL_HPO=1, "next_phrase_..._tail_<rule>_*" studies), the readout
+is trained by an online rule of canary.next_phrase_prediction.readout_rules (e.g. "lms", "eh_np_local") instead of the
+ridge regression. Its learning rate (LMS and EH) is in the search ("readout:rate", log-uniform in HPO_RULE_RATES: one
+training per fold, not the grid of readout_rules); its other hyperparameters (number of epochs, normalization, RLS's
+alpha) are chosen in the cross-validation like the ridge coefficient (readout_rules.choose), stored in the trial (user
+attribute "readout_rule").
 (The syllable classification has its own package, canary.syllables_classification.)
 
 Usage: python -m canary.next_phrase_prediction.hpo <model> <size>   (N_TRIALS trials)
@@ -58,9 +64,13 @@ RESET = TASK == "next_phrase" and os.environ.get("HAG_CANARY_RESET") == "1"
 TAIL_HPO = TASK == "next_phrase" and os.environ.get("HAG_CANARY_TAIL_HPO") in ("1", "2")
 TAIL_SEPARATE = TAIL_HPO and os.environ.get("HAG_CANARY_TAIL_HPO") == "2"  # (a tail for the training, one for the decision)
 MAX_TAIL = 10
+# next-phrase prediction: readout trained by an online rule (canary.next_phrase_prediction.readout_rules), not ridge
+HPO_RULE = os.environ.get("HAG_CANARY_HPO_RULE") if TAIL_HPO and not TAIL_SEPARATE else None
+# range of the normalized learning rate of the online rules (readout_rules: c / mean ||x||^2, LMS stable below 2)
+HPO_RULE_RATES = {"lms": (1e-3, 0.3), "eh": (1e-2, 1.0), "eh_np": (1e-2, 1.0), "eh_np_local": (1e-2, 1.0)}
 # prefix of the studies and of the results of the next-phrase prediction
 STUDY_PREFIX = (f"{TASK}_" + "calls_" * CALLS + "reset_" * RESET + "leak_" * LEAK + "tail_" * (TAIL_HPO and not TAIL_SEPARATE)
-                + "tail2_" * TAIL_SEPARATE
+                + "tail2_" * TAIL_SEPARATE + (f"{HPO_RULE}_" if HPO_RULE else "")
                 if TASK != "boundaries" else "")
 
 
@@ -134,6 +144,14 @@ def objective_function(model, size, songs, train_songs, frame, classes=None):
             elif params["readout:tail"] > 1:
                 params["readout:decision_mean"] = trial.suggest_categorical("readout:decision_mean", [True, False])
             readout = readout_of_params(params)
+            if HPO_RULE:
+                from canary.next_phrase_prediction.readout_rules.__main__ import choose
+                rate = (trial.suggest_float("readout:rate", *HPO_RULE_RATES[HPO_RULE], log=True)
+                        if HPO_RULE in HPO_RULE_RATES else None)
+                chosen, _ = choose(model, params, size, songs, train_songs, frame, classes, readout, [HPO_RULE], rate)
+                hyper, accuracy = chosen[HPO_RULE]
+                trial.set_user_attr("readout_rule", hyper)
+                return accuracy
             ridge, accuracy = choose_ridges(model, params, size, songs, train_songs, frame, classes, [readout])[readout]
             trial.set_user_attr("ridge", ridge)
             return accuracy
@@ -188,6 +206,6 @@ if __name__ == "__main__":
     study = optuna.load_study(study_name=study_name, storage=storage(study_name))
     best = study.best_trial
     threshold = best.user_attrs.get("threshold")
-    print(f"best trial {best.number}: {'accuracy' if TASK == 'next_phrase' else 'F1'} {best.value:.4f}, ridge "
-          f"{best.user_attrs['ridge']:.0e}" + (f", threshold {threshold:.2f}" if threshold is not None else "")
-          + f", {best.params}")
+    readout = (f"readout {best.user_attrs['readout_rule']}" if HPO_RULE else f"ridge {best.user_attrs['ridge']:.0e}")
+    print(f"best trial {best.number}: {'accuracy' if TASK == 'next_phrase' else 'F1'} {best.value:.4f}, {readout}"
+          + (f", threshold {threshold:.2f}" if threshold is not None else "") + f", {best.params}")

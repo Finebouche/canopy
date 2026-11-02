@@ -62,3 +62,10 @@ def test_trained_matches_numpy_nodes(rule):
     assert [epoch for epoch, _ in curves] == [1, 3]
     X = np.vstack([rows[w][0] for w in rows])  # (trained yields the same node, trained further: its last state)
     np.testing.assert_allclose(curves[-1][1].run(X), node.run(X), rtol=1e-10, atol=1e-12)
+
+
+def test_trained_stops_when_diverged():
+    rng = np.random.default_rng(0)
+    rows = {f"song{i}": data(rng, n=20) for i in range(4)}
+    curves = list(trained("lms", dict(rate=50.0), rows, list(rows), np.random.default_rng(0), [1, 3, 10, 30, 100]))
+    assert len(curves) < 5 and not np.all(np.isfinite(curves[-1][1].Wout))

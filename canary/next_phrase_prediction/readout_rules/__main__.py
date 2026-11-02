@@ -90,16 +90,16 @@ def song_data(reservoirs, songs, waves, readout, classes):
     return states, rows
 
 
-def configurations(rule):
+def configurations(rule, rate=None):
     """[(hyperparameters, epochs)] of a rule: a run of the online rules for each hyperparameters, scored after each
-    number of epochs."""
+    number of epochs (LMS and EH: the learning rates of the grid, or the single one rate)."""
     if rule == "ridge":
         return [(dict(ridge=float(r)), [None]) for r in RIDGES]
     if rule == "rls":
         return [(dict(normalization=n, alpha=float(a)), RLS_EPOCHS) for n in NORMALIZATIONS for a in RLS_ALPHAS]
     if rule == "lms":
-        return [(dict(normalization="standardize", rate=c), EPOCHS) for c in LMS_RATES]
-    return [(dict(normalization="standardize", rate=c, noise=EH_NOISE), EPOCHS) for c in EH_RATES]
+        return [(dict(normalization="standardize", rate=c), EPOCHS) for c in ([rate] if rate else LMS_RATES)]
+    return [(dict(normalization="standardize", rate=c, noise=EH_NOISE), EPOCHS) for c in ([rate] if rate else EH_RATES)]
 
 
 def normalized(hyper, rows, states, fit):
@@ -116,7 +116,8 @@ def normalized(hyper, rows, states, fit):
 
 def trained(rule, hyper, rows, fit, rng, epochs):
     """Yields (epochs, readout) of the rule trained on the rows of the songs fit: the ridge readout (epochs None), or
-    the online readout after each number of epochs of epochs (the same node, trained further)."""
+    the online readout after each number of epochs of epochs (the same node, trained further), until it diverges
+    (non-finite weights: stopped after the next number of epochs, its scores NaN)."""
     if rule == "ridge":
         data = (np.vstack([rows[w][0] for w in fit]), np.vstack([rows[w][1] for w in fit]))
         yield None, next(fitted_readouts(data, [hyper["ridge"]]))[1]
@@ -143,6 +144,8 @@ def trained(rule, hyper, rows, fit, rng, epochs):
                 node.partial_fit(X, Y, order)
             if epoch in epochs:
                 yield epoch, node
+                if not np.all(np.isfinite(node.Wout)):
+                    return
 
 
 def accuracy_counts(scores, true, classes):
@@ -150,9 +153,10 @@ def accuracy_counts(scores, true, classes):
         return int((classes[np.nan_to_num(scores, nan=-np.inf).argmax(axis=1)] == true).sum())
 
 
-def choose(model, params, size, songs, train_songs, frame, classes, readout, rules):
+def choose(model, params, size, songs, train_songs, frame, classes, readout, rules, rate=None):
     """({rule: (hyperparameters with "epochs", out-of-fold accuracy)} of the best configuration of each rule, out-of-fold
-    accuracy of each configuration and number of epochs), in the 3-fold cross-validation by song of the studies."""
+    accuracy of each configuration and number of epochs), in the 3-fold cross-validation by song of the studies (LMS
+    and EH: the learning rates of the grid, or the single one rate)."""
     correct, total = {}, 0
     for k, (fit_index, val_index) in enumerate(KFold(N_FOLDS, shuffle=True, random_state=FOLD_SEED).split(train_songs)):
         np.random.seed(CV_SEED + k)
@@ -161,7 +165,7 @@ def choose(model, params, size, songs, train_songs, frame, classes, readout, rul
         all_states, all_rows = song_data(reservoirs, songs, fit + val, readout, classes)
         true = np.concatenate([songs[w]["next"] for w in val])
         for rule in rules:
-            for c, (hyper, epochs) in enumerate(configurations(rule)):
+            for c, (hyper, epochs) in enumerate(configurations(rule, rate)):
                 rng = np.random.default_rng([CV_SEED + k, c])
                 rows, states = normalized(hyper, all_rows, all_states, fit)
                 X_val = np.vstack([states[w] for w in val])
@@ -173,8 +177,8 @@ def choose(model, params, size, songs, train_songs, frame, classes, readout, rul
     for rule in rules:
         (_, c, epoch), count = max(((key, count) for key, count in correct.items() if key[0] == rule),
                                    key=lambda item: item[1])
-        chosen[rule] = (dict(configurations(rule)[c][0], epochs=epoch), count / total)
-    curves = pd.DataFrame([dict(rule=rule, **configurations(rule)[c][0], epochs=epoch, cv_accuracy=count / total)
+        chosen[rule] = (dict(configurations(rule, rate)[c][0], epochs=epoch), count / total)
+    curves = pd.DataFrame([dict(rule=rule, **configurations(rule, rate)[c][0], epochs=epoch, cv_accuracy=count / total)
                            for (rule, c, epoch), count in correct.items()])
     return chosen, curves
 
