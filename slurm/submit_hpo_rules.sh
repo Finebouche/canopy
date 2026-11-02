@@ -6,25 +6,28 @@
 # caches (the compute nodes have no internet):
 #   [RULES="lms eh_np_local rls"] [PURE="mean_hag var_hag random_ee random_ei"] [SIZES="500 1000"] [LEAKS="0 1"] \
 #   [N_TRIALS=400] [BEGIN=20:00] bash slurm/submit_hpo_rules.sh
-# Each job: WORKERS processes optimizing the study (default 8, 2 threads each on CPUS=16 cores: a worker uses about 9.5 GB
-# at 1000 neurons, MEM=90G: two jobs per node of the CPU nodes CONSTRAINT, default zonda, suroit and bora, no GPU nor big
-# memory), time limit TIME (default 3 days, the limit outside the weekends). The studies resume where they stopped if
-# resubmitted. BEGIN: start time of the jobs (sbatch --begin, the big campaigns at night).
+# Each job: a whole node (CPUS=all, sbatch --exclusive) of the CPU nodes CONSTRAINT (default zonda, suroit and bora, no GPU
+# nor big memory), WORKERS processes optimizing the study (default auto: as many as the cores, 2 threads each, and the
+# memory, 11 GB each, allow: a worker uses about 9.5 GB at 1000 neurons; 22 on zonda and suroit, 16 on bora), or CPUS
+# cores and MEM memory (for example CPUS=16 MEM=90G WORKERS=8: two jobs per node), time limit TIME (default 3 days, the
+# limit outside the weekends). The studies resume where they stopped if resubmitted. BEGIN: start time of the jobs
+# (sbatch --begin, the big campaigns at night).
 set -euo pipefail
 read -r -a RULES <<< "${RULES:-lms eh_np_local rls}"
 read -r -a PURE <<< "${PURE:-mean_hag var_hag random_ee random_ei}"
 read -r -a SIZES <<< "${SIZES:-500 1000}"
 read -r -a LEAKS <<< "${LEAKS:-0 1}"
 N_TRIALS=${N_TRIALS:-400}
-WORKERS=${WORKERS:-8}
-CPUS=${CPUS:-16}
+WORKERS=${WORKERS:-auto}
+CPUS=${CPUS:-all}
 MEM=${MEM:-90G}
+if [ "$CPUS" = all ]; then RESOURCES=(--exclusive --mem=0); else RESOURCES=(--cpus-per-task="$CPUS" --mem="$MEM"); fi
 CONSTRAINT=${CONSTRAINT:-zonda|suroit|bora}
 TIME=${TIME:-3-00:00:00}
 BEGIN=${BEGIN:-20:00}
 cd "$(dirname "$0")/.."
 mkdir -p slurm/logs slurm/tasks outputs/canary/studies
-if ! find canopy/datasets/Canary/audio -name "*.wav" | grep -q . || [ ! -f canopy/datasets/Canary/boundary_features_44100_no_floor.pkl ]; then
+if [ -z "$(find canopy/datasets/Canary/audio -name "*.wav" -print -quit)" ] || [ ! -f canopy/datasets/Canary/boundary_features_44100_no_floor.pkl ]; then
     echo "canopy/datasets/Canary: audio or MFCC cache missing (the compute nodes have no internet)" >&2
     exit 1
 fi
@@ -36,8 +39,8 @@ for leak in "${LEAKS[@]}"; do
     for rule in "${RULES[@]}"; do
         array=$(HAG_CANARY_TASK=next_phrase HAG_CANARY_CALLS=1 HAG_CANARY_TAIL_HPO=0 HAG_CANARY_LEAK=$leak \
             HAG_CANARY_HPO_RULE=$rule HAG_CANARY_N_TRIALS=$N_TRIALS \
-            sbatch --parsable --constraint="$CONSTRAINT" --begin="$BEGIN" --array=0-$((n - 1)) --cpus-per-task=$CPUS \
-            --mem=$MEM --time=$TIME --job-name=hpo-$rule-leak$leak \
+            sbatch --parsable --constraint="$CONSTRAINT" --begin="$BEGIN" --array=0-$((n - 1)) "${RESOURCES[@]}" \
+            --time=$TIME --job-name=hpo-$rule-leak$leak \
             --export=ALL,HAG_CANARY_TASKS="$TASKS",HAG_CANARY_WORKERS=$WORKERS slurm/canary.sbatch)
         echo "$rule, leak $leak: job array $array ($n studies, $TASKS)"
     done

@@ -39,9 +39,20 @@ cd "$SLURM_SUBMIT_DIR"
 # this checkout and hag (HAG_DIR, default ~/hag_core, branch main), not the editable install of ~/hag (branch rl)
 export PYTHONPATH=$PWD:${HAG_DIR:-$HOME/hag_core}
 
-# threads of each worker (NumPy and JAX)
+# threads of each worker (NumPy and JAX), on the cores of the job (all those of the node with sbatch --exclusive);
+# HAG_CANARY_WORKERS=auto: as many workers as the cores (2 threads each) and the memory of the job
+# (HAG_CANARY_WORKER_MEM GB each, default 11: about 9.5 GB at 1000 neurons) allow
+CPUS=${SLURM_CPUS_ON_NODE:-$SLURM_CPUS_PER_TASK}
 WORKERS=${HAG_CANARY_WORKERS:-4}
-THREADS=$((SLURM_CPUS_PER_TASK / WORKERS))
+if [ "$WORKERS" = auto ]; then
+    WORKERS=$((CPUS / 2))
+    # memory of the job in MB (that of the node with sbatch --mem=0)
+    MEMORY=${SLURM_MEM_PER_NODE:-0}
+    if [ "$MEMORY" -eq 0 ]; then MEMORY=$(($(awk '/^MemTotal/ {print $2}' /proc/meminfo) / 1024)); fi
+    BY_MEMORY=$((MEMORY / 1024 / ${HAG_CANARY_WORKER_MEM:-11}))
+    if [ "$BY_MEMORY" -lt "$WORKERS" ]; then WORKERS=$((BY_MEMORY > 0 ? BY_MEMORY : 1)); fi
+fi
+THREADS=$((CPUS / WORKERS))
 export HAG_CANARY_WORKERS=$WORKERS OMP_NUM_THREADS=$THREADS OPENBLAS_NUM_THREADS=$THREADS MKL_NUM_THREADS=$THREADS
 export XLA_FLAGS="--xla_cpu_multi_thread_eigen=false intra_op_parallelism_threads=$THREADS"
 # numba cache of librosa per job: the jobs writing it at the same time in the shared environment fail (stale file handle)
@@ -57,7 +68,7 @@ trap 'exit 143' TERM
 (while true; do sleep 600; sync_back; done) &
 
 echo "[slurm] job ${SLURM_JOB_ID} ${SLURM_ARRAY_TASK_ID:-}: ${HAG_CANARY_MODE:-hpo} $*, on $(hostname)," \
-    "$SLURM_CPUS_PER_TASK cores, $WORKERS workers"
+    "$CPUS cores, $WORKERS workers"
 if [ "${HAG_CANARY_MODE:-hpo}" = evaluate ]; then
     python -m canopy.next_phrase_prediction.evaluate "$@"
 elif [ "${HAG_CANARY_MODE:-hpo}" = certainty ]; then
