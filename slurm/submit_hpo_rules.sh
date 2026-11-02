@@ -1,7 +1,8 @@
 #!/bin/bash
-# Optimization of the reservoirs and of the readout of the next phrase with the readout trained by an online rule
-# (canopy.next_phrase_prediction.hpo with HAG_CANARY_HPO_RULE: studies next_phrase_calls_[leak_]tail_<rule>_<model>_<size>)
-# on PlaFRIM, on the zonda nodes (no rare resource): a job array for each rule and leak, one study per job. Run from
+# Optimization of the reservoirs of the next-phrase prediction with the readout "last" -> "last" trained by an online
+# rule (canopy.next_phrase_prediction.hpo with HAG_CANARY_HPO_RULE, the learning rate of the rule in the search: studies
+# next_phrase_calls_[leak_]<rule>_<model>_<size>) on PlaFRIM, on the zonda nodes (no rare resource): a job array for each
+# rule and leak, one study per job. Run from
 # the root of a checkout of canopy with the audio and the MFCC caches (the compute nodes have no internet):
 #   [RULES="lms eh_np_local"] [PURE="var_hag random_ei"] [SIZES="500 1000"] [LEAKS="0 1"] [N_TRIALS=400] \
 #   [BEGIN=20:00] bash slurm/submit_hpo_rules.sh
@@ -31,7 +32,7 @@ for size in "${SIZES[@]}"; do for model in "${PURE[@]}"; do echo "$model $size";
 n=$(wc -l < "$TASKS")
 for leak in "${LEAKS[@]}"; do
     for rule in "${RULES[@]}"; do
-        array=$(HAG_CANARY_TASK=next_phrase HAG_CANARY_CALLS=1 HAG_CANARY_TAIL_HPO=1 HAG_CANARY_LEAK=$leak \
+        array=$(HAG_CANARY_TASK=next_phrase HAG_CANARY_CALLS=1 HAG_CANARY_TAIL_HPO=0 HAG_CANARY_LEAK=$leak \
             HAG_CANARY_HPO_RULE=$rule HAG_CANARY_N_TRIALS=$N_TRIALS \
             sbatch --parsable --constraint=zonda --begin="$BEGIN" --array=0-$((n - 1)) --cpus-per-task=$CPUS \
             --mem=$MEM --time=$TIME --job-name=hpo-$rule-leak$leak \
