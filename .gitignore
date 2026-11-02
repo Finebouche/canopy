@@ -14,8 +14,8 @@ dist/
 CLAUDE.md
 
 # Dataset: audio of the Zenodo record and MFCC caches (the annotations, corrected, are tracked)
-/canary/datasets/Canary/*
-!/canary/datasets/Canary/annotations/
+/canopy/datasets/Canary/*
+!/canopy/datasets/Canary/annotations/
 
 # outputs/canary: Optuna databases and parts of the jobs (only the result CSVs are tracked)
 /outputs/canary/studies/

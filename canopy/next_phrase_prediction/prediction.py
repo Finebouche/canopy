@@ -3,7 +3,7 @@ Prediction of the next phrase of canary songs from their audio, in the configura
 prediction (ESN reading the phrase labels of the song, with START and END), but with the MFCC of the song as input:
 the reservoir runs over the whole song (no reset between the phrases) and, at the end of each phrase, the readout predicts
 the label of the next one (END after the last phrase); before the first phrase (Maxime's START), it predicts the first
-one. Phrases as in canary.datasets.songs.load_songs: SIL, TRASH and call ignored, repeated labels merged; with
+one. Phrases as in canopy.datasets.songs.load_songs: SIL, TRASH and call ignored, repeated labels merged; with
 HAG_CANARY_CALLS=1, the calls are phrases too (SIL and TRASH ignored). With HAG_CANARY_RESET=1, the reservoirs hear
 the current phrase only, from a zero state (as the Canary task of hag), instead of the whole song: the
 state of a point is the last one of a run on the frames of the phrase that ends there (the zero state before the first
@@ -11,7 +11,7 @@ phrase); the HAG learning is the same (on phrases). Input: the 13 MFCC, without 
 without leak: outputs/canary/ablation_deltas_leak).
 
 No input after the prediction point: the MFCC are computed without the floor of the dB at 80 dB below the maximum of
-the whole song (librosa's default, which depends on the future of each frame: canary.common.load_dataset(top_db=None)),
+the whole song (librosa's default, which depends on the future of each frame: canopy.common.load_dataset(top_db=None)),
 and the MFCC frames are centered (half a window, 11.6 ms, of audio after their time), so the state used to predict
 what follows the time t is the one of the last frame whose window ends before t (DELAY earlier).
 
@@ -19,7 +19,7 @@ Readout: ridge regression on the one-hot next label at the prediction points (re
 HAG_CANARY_RIDGE_SOLVER, default "svd": the singular value decomposition of the centered states, stable with the
 smallest coefficients), its coefficient chosen by the 3-fold cross-validation by song on the train songs (out-of-fold
 accuracy), then trained on all the train songs and scored on the test songs for each seed. With HAG_CANARY_READOUT_ORDER=n (n >= 2), the generalized
-readout of Ohkubo & Inubushi (2024) instead (canary.generalized_readout.GeneralizedRidge: ridge regression on all the
+readout of Ohkubo & Inubushi (2024) instead (canopy.models.generalized_readout.GeneralizedRidge: ridge regression on all the
 monomials of the state up to degree n, the quadratic form for n = 2), its coefficient always chosen by the same
 cross-validation (the coefficients of the studies are those of the linear readout).
 Training rows of the readout (HAG_CANARY_POINTS), from the states of the window of each point: those of the frames of
@@ -34,7 +34,7 @@ removed: always worse, outputs/canary/next_phrase_calls{,_leak}_hpo_readouts.csv
 Comma-separated lists of these three variables: all their combinations (readouts (points, decision, tail), the tail
 None when neither uses it), on the same reservoirs, their coefficients chosen by the same cross-validation (that of
 the study for "last" -> "last"), and their paired comparisons with "last" -> "last".
-With the studies of the readout (HAG_CANARY_TAIL_HPO=1, canary.next_phrase_prediction.hpo), the readouts of each
+With the studies of the readout (HAG_CANARY_TAIL_HPO=1, canopy.next_phrase_prediction.hpo), the readouts of each
 condition are instead: "last" -> "last", that of its study (column hpo; for the conditions without study, mfcc and
 hybrids, the best of TAIL_READOUTS in the cross-validation) and, for each kind of tail readout (training rows "tail"
 or "tail_mean", decision "last" or "tail_mean"), the length of tail of the best cross-validation accuracy (column
@@ -45,7 +45,7 @@ readouts (default: the tail of the training rows).
 Metrics as Maxime's: accuracy and macro F1 of all the points,
 without the last one of each song ("skip_last": its target is END), and of the phrases only ("no_end": points whose
 target is a phrase, argmax over the phrases).
-References: n-grams of the true labels of the previous phrases (canary.next_phrase_prediction.prediction baselines): fixed order n
+References: n-grams of the true labels of the previous phrases (canopy.next_phrase_prediction.prediction baselines): fixed order n
 (the n previous labels, START before the first phrase; unseen context: the most frequent next label) and adaptive (the
 longest context seen in the train songs, up to MAX_ORDER).
 
@@ -54,12 +54,12 @@ Results: outputs/canary/<HAG_CANARY_TASK=next_phrase prefix>hpo.csv (e.g. next_p
 with other training rows),
 references in next_phrase_ngrams.csv (next_phrase_calls_ngrams.csv with the calls).
 Usage (HAG_CANARY_TASK=next_phrase, with the variables of the studies, e.g. HAG_CANARY_LEAK=1):
-  python -m canary.next_phrase_prediction.prediction [sizes] [nb_seeds]   all the conditions (default 500,1000, 10 seeds)
-  python -m canary.next_phrase_prediction.prediction run <condition> <size> [nb_seeds]   one condition (slurm/submit_next_phrase.sh),
+  python -m canopy.next_phrase_prediction.prediction [sizes] [nb_seeds]   all the conditions (default 500,1000, 10 seeds)
+  python -m canopy.next_phrase_prediction.prediction run <condition> <size> [nb_seeds]   one condition (slurm/submit_next_phrase.sh),
                                                                           results in outputs/canary/<name>_parts
-  python -m canary.next_phrase_prediction.prediction merge                               results of the parts and the comparisons
-  python -m canary.next_phrase_prediction.prediction list <sizes>                        "<condition> <size>" of all the conditions
-  python -m canary.next_phrase_prediction.prediction baselines                           the n-grams
+  python -m canopy.next_phrase_prediction.prediction merge                               results of the parts and the comparisons
+  python -m canopy.next_phrase_prediction.prediction list <sizes>                        "<condition> <size>" of all the conditions
+  python -m canopy.next_phrase_prediction.prediction baselines                           the n-grams
 """
 import os
 import sys
@@ -71,15 +71,15 @@ from scipy.stats import wilcoxon
 from sklearn.metrics import f1_score
 from sklearn.model_selection import KFold
 
-from canary.common import OUTPUTS, RIDGES, load_dataset, pretrain_phrases
-from canary.evaluate import compare
-from canary.generalized_readout import GeneralizedRidge
+from canopy.common import OUTPUTS, RIDGES, load_dataset, pretrain_phrases
+from canopy.evaluate_utils import compare
+from canopy.models.generalized_readout import GeneralizedRidge
 from reservoirpy.nodes import Ridge
-from canary.hpo import CV_SEED, FOLD_SEED, N_FOLDS
-from canary.models import CHUNK, build, state_chunks, states
-from canary.next_phrase_prediction.evaluate import conditions
-from canary.next_phrase_prediction.hpo import CALLS, MAX_TAIL, RESET, STUDY_PREFIX, TAIL_HPO, TAIL_SEPARATE, TASK
-from canary.datasets.songs import SONGS_SAMPLING_RATE, annotations_of_songs, canary_mfcc_config, song_phrases
+from canopy.hpo_utils import CV_SEED, FOLD_SEED
+from canopy.models.reservoirs import CHUNK, build, state_chunks, states
+from canopy.next_phrase_prediction.evaluate import REFERENCE, conditions
+from canopy.next_phrase_prediction.hpo import CALLS, MAX_TAIL, N_FOLDS, RESET, STUDY_PREFIX, TAIL_HPO, TAIL_SEPARATE, TASK
+from canopy.datasets.songs import SONGS_SAMPLING_RATE, annotations_of_songs, canary_mfcc_config, song_phrases
 
 SIZES = [500, 1000]
 START, END = "START", "END"
@@ -106,7 +106,7 @@ def readout_of(points, decision, tail, decision_tail=None):
 
 
 def readout_of_params(params):
-    """Readout of the parameters "readout:*" of a study of the readout (canary.next_phrase_prediction.hpo,
+    """Readout of the parameters "readout:*" of a study of the readout (canopy.next_phrase_prediction.hpo,
     TAIL_HPO), None without them: "last" -> "last" for a tail of 1 frame. With "readout:decision_tail" (TAIL_SEPARATE),
     the tail of the training rows ("readout:tail", 1: the last state) and that of the decision are separate."""
     tail = params.get("readout:tail")
@@ -267,7 +267,7 @@ def fit_readout(data, ridge):
 
 def choose_ridges(model, params, size, songs, train_songs, frame, classes, readouts):
     """{readout: (ridge coefficient of the best out-of-fold accuracy, this accuracy)}, in a 3-fold cross-validation by
-    song (the folds of canary.next_phrase_prediction.hpo), the readouts on the same reservoirs."""
+    song (the folds of canopy.next_phrase_prediction.hpo), the readouts on the same reservoirs."""
     correct = {readout: np.zeros(len(RIDGES)) for readout in readouts}
     total = 0
     for k, (fit_index, val_index) in enumerate(KFold(N_FOLDS, shuffle=True, random_state=FOLD_SEED).split(train_songs)):
@@ -466,16 +466,16 @@ def save(results):
     OUTPUTS.mkdir(parents=True, exist_ok=True)
     results.to_csv(OUTPUTS / f"{NAME}.csv", index=False)
     if "points" not in results:
-        comparisons = compare(results, metric="accuracy")
+        comparisons = compare(results, "accuracy", REFERENCE)
     elif "hpo" in results:  # (the readouts of the studies, TAIL_HPO; the tail differs between the conditions)
-        comparisons = compare(results[results.hpo.astype(bool)], metric="accuracy")
+        comparisons = compare(results[results.hpo.astype(bool)], "accuracy", REFERENCE)
         readout_comparisons = compare_readouts(results[results.hpo.astype(bool) | ((results.points == "last")
                                                                                    & (results.decision == "last"))])
         print(readout_comparisons.round(4).to_string(index=False))
         readout_comparisons.to_csv(OUTPUTS / f"{NAME}_readout_comparisons.csv", index=False)
         print("Saved to", OUTPUTS / f"{NAME}_readout_comparisons.csv")
     else:
-        comparisons = pd.concat([compare(group, metric="accuracy").assign(
+        comparisons = pd.concat([compare(group, "accuracy", REFERENCE).assign(
             points=points, decision=decision, tail=None if tail < 0 else int(tail),
             decision_tail=None if decision_tail < 0 else int(decision_tail))
             for (points, decision, tail, decision_tail), group in filled_tails(results).groupby(

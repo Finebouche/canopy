@@ -1,6 +1,6 @@
 """
-Certainty of a readout along the phrases of the test songs, shared by canary.next_phrase_prediction.certainty (next
-phrase) and canary.syllables_classification.certainty (class of the syllable). On the frames of every phrase:
+Certainty of a readout along the phrases of the test songs, shared by canopy.next_phrase_prediction.certainty (next
+phrase) and canopy.syllables_classification.certainty (class of the syllable). On the frames of every phrase:
   - true_output: output of the readout unit of the true class;
   - margin: true_output minus the largest output of the other classes (> 0: frame correctly classified);
   - correct: the frame is correctly classified.
@@ -8,7 +8,7 @@ These are averaged per phrase in bins of the relative position in the phrase (0 
 the time since the onset, then over the phrases. For each phrase, the mean true_output of its last third minus that of
 its first third (Wilcoxon signed-rank test over the phrases): > 0 if the unit of the class is more active at the end.
 
-Reservoirs: best parameters of the studies of the conditions of the task (canary.evaluate.conditions), ridge of the
+Reservoirs: best parameters of the studies of the conditions of the task (canopy.evaluate_utils.conditions), ridge of the
 best trial of the study (or chosen by the cross-validation of the task). Results: outputs/canary/<name>_<size>.csv (bins),
 <name>_<size>_phrases.csv (first / last third per condition and seed) and <name>_<size>.png.
 """
@@ -18,7 +18,7 @@ import numpy as np
 import pandas as pd
 from scipy.stats import wilcoxon
 
-from canary.common import OUTPUTS
+from canopy.common import OUTPUTS
 
 RELATIVE_BINS = 10
 ONSET_BIN = 0.05  # s

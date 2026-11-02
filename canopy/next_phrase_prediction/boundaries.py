@@ -1,11 +1,11 @@
 """
-Phrase boundaries of the canary songs (canary.next_phrase_prediction.evaluate, the boundary studies of
-canary.next_phrase_prediction.hpo): boundary targets, peak picking and scores; the songs with their boundary targets.
+Phrase boundaries of the canary songs (canopy.next_phrase_prediction.evaluate, the boundary studies of
+canopy.next_phrase_prediction.hpo): boundary targets, peak picking and scores; the songs with their boundary targets.
 """
 import numpy as np
 from scipy.signal import find_peaks
 
-from canary.common import load_dataset as load_songs_dataset
+from canopy.common import load_dataset as load_songs_dataset
 
 BUMP_STD = 0.025  # s
 TOLERANCE = 0.05  # s
@@ -53,7 +53,7 @@ def scores(outputs, songs, waves, threshold, frame):
 
 
 def load_dataset():
-    """canary.common.load_dataset, and the boundary target of each song: songs[wave]["target"]."""
+    """canopy.common.load_dataset, and the boundary target of each song: songs[wave]["target"]."""
     songs, train_songs, test_songs, frame = load_songs_dataset()
     for song in songs.values():
         times = np.arange(len(song["mfcc"])) * frame  # librosa frames are centered

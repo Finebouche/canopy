@@ -1,8 +1,8 @@
 """
-Certainty of the prediction of the next phrase (canary.next_phrase_prediction.prediction) along the current phrase: its
+Certainty of the prediction of the next phrase (canopy.next_phrase_prediction.prediction) along the current phrase: its
 readout is trained at the prediction points of the train songs, then applied to every frame of each phrase of the test
 songs up to its prediction point (no frame hearing the next phrase), the true class being the next phrase (END after
-the last one); output of its unit, margin and correctness along the phrase (canary.certainty). With
+the last one); output of its unit, margin and correctness along the phrase (canopy.certainty). With
 HAG_CANARY_RESET=1, the frames of a phrase are those of a run of the reservoirs from a zero state on the phrase.
 
 Reservoirs: best parameters of the next-phrase studies (HAG_CANARY_TASK=next_phrase and the variables of the
@@ -10,24 +10,24 @@ studies, e.g. HAG_CANARY_LEAK=1, HAG_CANARY_RESET=1, HAG_CANARY_CALLS=1), ridge 
 Results: outputs/canary/<prefix of the studies>certainty_<size>.csv, ..._phrases.csv and .png (e.g.
 next_phrase_leak_certainty_1000.csv).
 
-Usage: python -m canary.next_phrase_prediction.certainty [size] [conditions] [nb_seeds]
+Usage: python -m canopy.next_phrase_prediction.certainty [size] [conditions] [nb_seeds]
   (default 1000, mean_hag,var_hag,random_ee,random_ei, 3 seeds)
 """
 import sys
 
 import numpy as np
 
-from canary.certainty import MIN_FRAMES, curve, evaluate_conditions, save, summarize
-from canary.common import load_dataset, pretrain_phrases
-from canary.models import CHUNK, build, state_chunks, states
-from canary.next_phrase_prediction.evaluate import conditions
-from canary.next_phrase_prediction.hpo import RESET, STUDY_PREFIX, TASK
-from canary.next_phrase_prediction.prediction import choose_ridge, fit_readout, point_states, prepare
+from canopy.certainty import MIN_FRAMES, curve, evaluate_conditions, save, summarize
+from canopy.common import load_dataset, pretrain_phrases
+from canopy.models.reservoirs import CHUNK, build, state_chunks, states
+from canopy.next_phrase_prediction.evaluate import conditions
+from canopy.next_phrase_prediction.hpo import RESET, STUDY_PREFIX, TASK
+from canopy.next_phrase_prediction.prediction import choose_ridge, fit_readout, point_states, prepare
 
 
 def run(condition, model, params, size, ridge, songs, train_songs, test_songs, frame, classes, seed):
     """Curves of the readout of the next phrase on the frames of each phrase of the test songs, from its onset to its
-    prediction point (canary.next_phrase_prediction.prediction), the phrases of fewer than MIN_FRAMES frames
+    prediction point (canopy.next_phrase_prediction.prediction), the phrases of fewer than MIN_FRAMES frames
     skipped."""
     np.random.seed(seed)
     reservoirs = build(model, params, size, pretrain_phrases(songs, train_songs, frame))

@@ -1,9 +1,9 @@
 #!/bin/bash
-# Full canary boundary detection experiment (canary.next_phrase_prediction), run from the root of a checkout of canopy:
-#   1. optimization of the pure models (canary.models.PURE_MODELS) at each size of SIZES, job array;
+# Full canary boundary detection experiment (canopy.next_phrase_prediction), run from the root of a checkout of canopy:
+#   1. optimization of the pure models (canopy.models.reservoirs.PURE_MODELS) at each size of SIZES, job array;
 #   2. final evaluation with NB_SEEDS seeds and the paired comparisons (after 1), the hybrids <hag>+<esn> of each size
 #      combining the parts optimized alone at half the size (they are not optimized).
-# canary.next_phrase_prediction.hpo.N_TRIALS trials per study (Optuna, TPE). With HAG_CANARY_TASK=syllables, the studies optimize
+# canopy.next_phrase_prediction.hpo.N_TRIALS trials per study (Optuna, TPE). With HAG_CANARY_TASK=syllables, the studies optimize
 # the frame accuracy of the syllable classification ("syllables_<model>_<size>") and the final evaluation is
 # slurm/submit_syllables.sh.
 # With HAG_CANARY_TASK=next_phrase, they optimize the accuracy of the prediction of the next phrase
@@ -22,7 +22,7 @@ NODES=(--constraint="zen4|zen3|zonda" --exclude="sirocco[21-25],enbata[01-02]")
 cd "$(dirname "$0")/.."
 mkdir -p slurm/logs slurm/tasks outputs/canary/studies
 
-# the MFCC caches, once, before the jobs (canary/datasets/Canary/boundary_features_44100.pkl, and ..._no_floor.pkl of the
+# the MFCC caches, once, before the jobs (canopy/datasets/Canary/boundary_features_44100.pkl, and ..._no_floor.pkl of the
 # next-phrase prediction)
 set +u
 module load micromamba
@@ -30,7 +30,7 @@ export MAMBA_ROOT_PREFIX=$HOME/micromamba
 eval "$(micromamba shell hook -s bash)"
 micromamba activate hag_env
 set -u
-PYTHONPATH=$PWD:${HAG_DIR:-$HOME/hag_core} python -c "from canary.common import load_dataset; load_dataset(); load_dataset(top_db=None)" > /dev/null
+PYTHONPATH=$PWD:${HAG_DIR:-$HOME/hag_core} python -c "from canopy.common import load_dataset; load_dataset(); load_dataset(top_db=None)" > /dev/null
 
 stamp=$(date +%Y%m%d_%H%M%S)
 PURE_TASKS=slurm/tasks/canary_pure_$stamp.txt

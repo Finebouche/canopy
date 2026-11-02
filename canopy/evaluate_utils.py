@@ -1,23 +1,21 @@
 """
 Shared parts of the evaluations of the canary tasks: conditions, for each SIZE (number of neurons in all),
   - "mfcc" (no reservoir, once, added by the task);
-  - the pure models (canary.models.PURE_MODELS) with the best parameters of their study "<model>_<SIZE>" (named by the
+  - the pure models (canopy.models.reservoirs.PURE_MODELS) with the best parameters of their study "<model>_<SIZE>" (named by the
     task, e.g. "next_phrase_leak_<model>_<SIZE>");
   - "<hag>_proj": the parameters of "<hag>_<SIZE>" without the HAG learning;
   - "<hag>+<esn>": hybrid of the best parts optimized alone with SIZE / 2 neurons (the hybrids are not optimized)
 (missing studies skipped), and the paired comparisons by seed of their results: mean difference of a metric, its
-bootstrap 95 % confidence interval and the p-value of the Wilcoxon signed-rank test.
+bootstrap 95 % confidence interval and the p-value of the Wilcoxon signed-rank test (the reference condition of the
+comparisons, REFERENCE: in the module of each task).
 """
 import numpy as np
 import optuna
 import pandas as pd
 from scipy.stats import wilcoxon
 
-from canary.hpo import storage, study_exists
-from canary.models import ESN_MODELS, HAG_MODELS, PURE_MODELS, parts
-
-REFERENCE = "random_ee"
-
+from canopy.hpo_utils import storage, study_exists
+from canopy.models.reservoirs import ESN_MODELS, HAG_MODELS, PURE_MODELS, parts
 
 def best_trial(study_name):
     if not study_exists(study_name):  # (without creating an empty database)
@@ -57,15 +55,16 @@ def conditions(size, study_name_of):
     return result
 
 
-def compare(results, metric, nb_bootstrap=10000):
-    """Paired comparisons by seed of the metric (condition A - condition B), for each size."""
+def compare(results, metric, reference, nb_bootstrap=10000):
+    """Paired comparisons by seed of the metric (condition A - condition B), for each size: each condition with the
+    reference condition, the HAG models with their projections and the hybrids with their parts."""
     rows = []
     rng = np.random.default_rng(0)
     mfcc = results[results.condition == "mfcc"]
     for size, by_size in results[results.condition != "mfcc"].groupby("network_size"):
         by_size = pd.concat([by_size, mfcc])
         f1 = by_size.pivot_table(index="seed", columns="condition", values=metric)
-        pairs = [(c, REFERENCE) for c in f1.columns if c != REFERENCE]
+        pairs = [(c, reference) for c in f1.columns if c != reference]
         pairs += [(hag, f"{hag}_proj") for hag in HAG_MODELS]
         for hag in HAG_MODELS:
             for esn in ESN_MODELS:

@@ -46,8 +46,8 @@ Repository = "https://github.com/Finebouche/canopy"
 [tool.setuptools.packages.find]
 where = ["."]
 include = [
-  "canary",
-  "canary.*",
+  "canopy",
+  "canopy.*",
 ]
 exclude = [
   "outputs",

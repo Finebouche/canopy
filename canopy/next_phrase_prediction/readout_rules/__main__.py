@@ -1,5 +1,5 @@
 """
-Learning rules of the readout of the next-phrase prediction (canary.next_phrase_prediction.prediction), compared on the
+Learning rules of the readout of the next-phrase prediction (canopy.next_phrase_prediction.prediction), compared on the
 same reservoirs: from the least to the most biologically plausible,
   - "ridge": ridge regression on all the training rows at once (reservoirpy's Ridge, solver RIDGE_SOLVER), the
     reference of the other tasks;
@@ -8,7 +8,7 @@ same reservoirs: from the least to the most biologically plausible,
   - "lms": online least mean squares (the rule of reservoirpy's LMS, the LMS-based FORCE rule: local, but each readout
     needs its exact error; trained in JAX, readout_rules.lms), learning rate c / mean ||x||^2 (c the normalized rate,
     stable below 2);
-  - "eh": the exploratory Hebbian rule of Hoerzer et al. (2014) (the rule of canary.eh_readout.EH, the paper's: filtered
+  - "eh": the exploratory Hebbian rule of Hoerzer et al. (2014) (the rule of canopy.models.eh_readout.EH, the paper's: filtered
     baselines, a single global binary reward for all the readouts, no teacher; trained in JAX, readout_rules.eh),
     learning rate c / mean ||x||^2;
   - "eh_np": the same with the baseline "sample" (node perturbation of Fiete & Seung 2006: the reward compared with
@@ -36,10 +36,10 @@ Results: outputs/canary/<prefix>readout_rules<suffix>.csv (one row per condition
 (out-of-fold accuracy of each configuration and number of epochs: the learning curves), suffix
 HAG_CANARY_RULES_SUFFIX (default none).
 Usage (HAG_CANARY_TASK=next_phrase HAG_CANARY_TAIL_HPO=1, with the variables of the studies):
-  python -m canary.next_phrase_prediction.readout_rules run <condition> <size> [nb_seeds]   one condition
+  python -m canopy.next_phrase_prediction.readout_rules run <condition> <size> [nb_seeds]   one condition
                                                        (slurm/submit_readout_rules.sh), results in <name>_parts
-  python -m canary.next_phrase_prediction.readout_rules merge          results of the parts and the comparisons
-  python -m canary.next_phrase_prediction.readout_rules list <sizes>   "<condition> <size>" of the conditions (no _proj)
+  python -m canopy.next_phrase_prediction.readout_rules merge          results of the parts and the comparisons
+  python -m canopy.next_phrase_prediction.readout_rules list <sizes>   "<condition> <size>" of the conditions (no _proj)
 """
 import os
 import sys
@@ -51,14 +51,14 @@ from reservoirpy.nodes import RLS
 from scipy.stats import wilcoxon
 from sklearn.model_selection import KFold
 
-from canary.common import OUTPUTS, RIDGES, load_dataset, pretrain_phrases
-from canary.hpo import CV_SEED, FOLD_SEED, N_FOLDS
-from canary.models import build
-from canary.next_phrase_prediction.hpo import STUDY_PREFIX, TAIL_HPO, TAIL_SEPARATE
-from canary.next_phrase_prediction.prediction import (NAME, all_conditions, decision_of, fitted_readouts, metrics,
+from canopy.common import OUTPUTS, RIDGES, load_dataset, pretrain_phrases
+from canopy.hpo_utils import CV_SEED, FOLD_SEED
+from canopy.models.reservoirs import build
+from canopy.next_phrase_prediction.hpo import N_FOLDS, STUDY_PREFIX, TAIL_HPO, TAIL_SEPARATE
+from canopy.next_phrase_prediction.prediction import (NAME, all_conditions, decision_of, fitted_readouts, metrics,
                                                       point_windows, prepare, readout_of, training_of)
-from canary.next_phrase_prediction.readout_rules.eh import EH
-from canary.next_phrase_prediction.readout_rules.lms import LMS
+from canopy.next_phrase_prediction.readout_rules.eh import EH
+from canopy.next_phrase_prediction.readout_rules.lms import LMS
 
 RULES = os.environ.get("HAG_CANARY_READOUT_RULES", "ridge,rls,lms,eh,eh_np,eh_np_local").split(",")
 NORMALIZATIONS = ["center", "standardize"]  # (inputs of RLS; LMS and EH: "standardize", better in all the conditions)
@@ -74,7 +74,7 @@ PARTS = OUTPUTS / f"{RESULTS}_parts"
 
 def song_data(reservoirs, songs, waves, readout, classes):
     """({wave: states of the decision of its points}, {wave: (training rows, one-hot next labels)}) of the readout
-    (as canary.next_phrase_prediction.prediction.point_data, by song: the rows of a song in its time order)."""
+    (as canopy.next_phrase_prediction.prediction.point_data, by song: the rows of a song in its time order)."""
     (points, tail), (decision, decision_tail) = training_of(readout), decision_of(readout)
     states, rows = {}, {}
     for w, windows in point_windows(reservoirs, songs, waves):

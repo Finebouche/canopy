@@ -1,6 +1,6 @@
 """
 Hyperparameter optimization of the canary boundary detection, on the train songs only (the test songs are used once,
-by canary.next_phrase_prediction.evaluate).
+by canopy.next_phrase_prediction.evaluate).
 
 Objective: F1 of the boundaries, out of fold, in a 3-fold cross-validation by song on the train songs. In each fold,
 the reservoirs are built (HAG learning on phrases of the fold's training songs), the ridge readout is trained on the
@@ -9,13 +9,13 @@ ridge coefficient and the peak threshold are then chosen on the out-of-fold outp
 F1 is the objective. They are stored in the trial (user attributes "ridge", "threshold") for the final evaluation.
 The ridge coefficient is thus not a hyperparameter of the search, for all the models.
 
-Studies: "<model>_<size>" of the pure models (canary.models.PURE_MODELS; the hybrids are not optimized, they combine
-the parts optimized alone: canary.evaluate.conditions), one SQLite database each in STUDIES_DIR (HAG_CANARY_STUDIES,
+Studies: "<model>_<size>" of the pure models (canopy.models.reservoirs.PURE_MODELS; the hybrids are not optimized, they combine
+the parts optimized alone: canopy.evaluate_utils.conditions), one SQLite database each in STUDIES_DIR (HAG_CANARY_STUDIES,
 default outputs/canary/studies).
 
 With HAG_CANARY_TASK=next_phrase, the objective is the out-of-fold accuracy of the prediction of the next phrase
-(canary.next_phrase_prediction.prediction.choose_ridge: same folds, ridge coefficient chosen on the out-of-fold points), in the
-studies "next_phrase_<model>_<size>" (input: the 13 MFCC, see canary.next_phrase_prediction.prediction):
+(canopy.next_phrase_prediction.prediction.choose_ridge: same folds, ridge coefficient chosen on the out-of-fold points), in the
+studies "next_phrase_<model>_<size>" (input: the 13 MFCC, see canopy.next_phrase_prediction.prediction):
 "next_phrase_leak_*" with HAG_CANARY_LEAK=1 (leak rate of each reservoir in the search, instead of 1),
 "next_phrase_calls_*" with HAG_CANARY_CALLS=1 (the calls are phrases too) and "next_phrase_reset_*" with
 HAG_CANARY_RESET=1 (the reservoirs hear the current phrase only, from a zero state). (The campaigns with the deltas of
@@ -24,19 +24,19 @@ With HAG_CANARY_TAIL_HPO=1 ("next_phrase_..._tail_*" studies), the readout is se
 "readout:tail" (1 to MAX_TAIL frames of the end of the window of each point, 1: "last" -> "last") and, for a tail of
 at least 2 frames, "readout:train_mean" (training rows: the mean of the tail, "tail_mean", or its frames, "tail") and
 "readout:decision_mean" (decision on the mean of the tail, "tail_mean", or on the last state, "last"), see
-canary.next_phrase_prediction.prediction.readout_of_params.
+canopy.next_phrase_prediction.prediction.readout_of_params.
 With HAG_CANARY_TAIL_HPO=2 ("next_phrase_..._tail2_*" studies), the tails of the training rows and of the decision are
 two parameters: "readout:tail" (1: the last state only, "last"), "readout:train_mean" (for a tail of at least 2 frames)
 and "readout:decision_tail" (1 to MAX_TAIL frames, 1: decision on the last state, else on the mean of the tail).
 With HAG_CANARY_HPO_RULE=<rule> (with HAG_CANARY_TAIL_HPO=1, "next_phrase_..._tail_<rule>_*" studies), the readout
-is trained by an online rule of canary.next_phrase_prediction.readout_rules (e.g. "lms", "eh_np_local") instead of the
+is trained by an online rule of canopy.next_phrase_prediction.readout_rules (e.g. "lms", "eh_np_local") instead of the
 ridge regression. Its learning rate (LMS and EH) is in the search ("readout:rate", log-uniform in HPO_RULE_RATES: one
 training per fold, not the grid of readout_rules); its other hyperparameters (number of epochs, normalization, RLS's
 alpha) are chosen in the cross-validation like the ridge coefficient (readout_rules.choose), stored in the trial (user
 attribute "readout_rule").
-(The syllable classification has its own package, canary.syllables_classification.)
+(The syllable classification has its own package, canopy.syllables_classification.)
 
-Usage: python -m canary.next_phrase_prediction.hpo <model> <size>   (N_TRIALS trials)
+Usage: python -m canopy.next_phrase_prediction.hpo <model> <size>   (N_TRIALS trials)
   workers: HAG_CANARY_WORKERS processes (default 1) optimizing the same study.
 """
 import os
@@ -50,21 +50,24 @@ from optuna.study import MaxTrialsCallback
 from optuna.trial import TrialState
 from sklearn.model_selection import KFold
 
-from canary.common import RIDGES, pretrain_phrases
-from canary.hpo import CV_SEED, FOLD_SEED, N_FOLDS, N_TRIALS, stop_after_failures, storage
-from canary.models import ESN_MODELS, HAG_MODELS, PURE_MODELS, build, normal_equations, parts, readout_outputs, ridge_readout
-from canary.next_phrase_prediction.boundaries import THRESHOLDS, load_dataset, scores
+from canopy.common import RIDGES, pretrain_phrases
+from canopy.hpo_utils import CV_SEED, FOLD_SEED, stop_after_failures, storage
+from canopy.models.reservoirs import (ESN_MODELS, HAG_MODELS, PURE_MODELS, build, normal_equations, parts,
+                                      readout_outputs, ridge_readout)
+from canopy.next_phrase_prediction.boundaries import THRESHOLDS, load_dataset, scores
 
 TASK = os.environ.get("HAG_CANARY_TASK", "boundaries")  # "boundaries" or "next_phrase"
 LEAK = TASK != "boundaries" and os.environ.get("HAG_CANARY_LEAK") == "1"
-# next-phrase prediction: calls among the phrases, reservoirs reset at each phrase (canary.next_phrase_prediction.prediction)
+# next-phrase prediction: calls among the phrases, reservoirs reset at each phrase (canopy.next_phrase_prediction.prediction)
 CALLS = TASK == "next_phrase" and os.environ.get("HAG_CANARY_CALLS") == "1"
 RESET = TASK == "next_phrase" and os.environ.get("HAG_CANARY_RESET") == "1"
 # next-phrase prediction: readout (length of the tail, means in training and decision) in the search
 TAIL_HPO = TASK == "next_phrase" and os.environ.get("HAG_CANARY_TAIL_HPO") in ("1", "2")
 TAIL_SEPARATE = TAIL_HPO and os.environ.get("HAG_CANARY_TAIL_HPO") == "2"  # (a tail for the training, one for the decision)
+N_FOLDS = 3  # (cross-validation by song on the train songs)
+N_TRIALS = int(os.environ.get("HAG_CANARY_N_TRIALS", 400))
 MAX_TAIL = 10
-# next-phrase prediction: readout trained by an online rule (canary.next_phrase_prediction.readout_rules), not ridge
+# next-phrase prediction: readout trained by an online rule (canopy.next_phrase_prediction.readout_rules), not ridge
 HPO_RULE = os.environ.get("HAG_CANARY_HPO_RULE") if TAIL_HPO and not TAIL_SEPARATE else None
 # range of the normalized learning rate of the online rules (readout_rules: c / mean ||x||^2, LMS stable below 2)
 HPO_RULE_RATES = {"lms": (1e-3, 0.3), "eh": (1e-2, 1.0), "eh_np": (1e-2, 1.0), "eh_np_local": (1e-2, 1.0)}
@@ -134,8 +137,8 @@ def objective_function(model, size, songs, train_songs, frame, classes=None):
             else:
                 raise ValueError(f"Unknown model {part}")
         if TASK == "next_phrase" and TAIL_HPO:
-            from canary.next_phrase_prediction.prediction import choose_ridges, readout_of_params
-            # (prefix "readout:": ignored by canary.models.build)
+            from canopy.next_phrase_prediction.prediction import choose_ridges, readout_of_params
+            # (prefix "readout:": ignored by canopy.models.reservoirs.build)
             params["readout:tail"] = trial.suggest_int("readout:tail", 1, MAX_TAIL)
             if params["readout:tail"] > 1:
                 params["readout:train_mean"] = trial.suggest_categorical("readout:train_mean", [True, False])
@@ -145,7 +148,7 @@ def objective_function(model, size, songs, train_songs, frame, classes=None):
                 params["readout:decision_mean"] = trial.suggest_categorical("readout:decision_mean", [True, False])
             readout = readout_of_params(params)
             if HPO_RULE:
-                from canary.next_phrase_prediction.readout_rules.__main__ import choose
+                from canopy.next_phrase_prediction.readout_rules.__main__ import choose
                 rate = (trial.suggest_float("readout:rate", *HPO_RULE_RATES[HPO_RULE], log=True)
                         if HPO_RULE in HPO_RULE_RATES else None)
                 chosen, _ = choose(model, params, size, songs, train_songs, frame, classes, readout, [HPO_RULE], rate)
@@ -156,7 +159,7 @@ def objective_function(model, size, songs, train_songs, frame, classes=None):
             trial.set_user_attr("ridge", ridge)
             return accuracy
         if TASK == "next_phrase":
-            from canary.next_phrase_prediction.prediction import choose_ridge
+            from canopy.next_phrase_prediction.prediction import choose_ridge
             ridge, accuracy = choose_ridge(model, params, size, songs, train_songs, frame, classes)
             trial.set_user_attr("ridge", ridge)
             return accuracy
@@ -173,8 +176,8 @@ def load_task_dataset():
     if TASK != "next_phrase":
         songs, train_songs, _, frame = load_dataset()
         return songs, train_songs, frame, None
-    from canary.common import load_dataset as load_songs_dataset
-    from canary.next_phrase_prediction.prediction import prepare
+    from canopy.common import load_dataset as load_songs_dataset
+    from canopy.next_phrase_prediction.prediction import prepare
     songs, train_songs, _, frame = load_songs_dataset(top_db=None)
     classes = prepare(songs, train_songs, frame)
     return songs, train_songs, frame, classes
@@ -193,7 +196,7 @@ if __name__ == "__main__":
     n_workers = int(os.environ.get("HAG_CANARY_WORKERS", 1))
     if model not in PURE_MODELS:
         raise ValueError(f"Unknown model {model}, expected one of {PURE_MODELS} (the hybrids <hag>+<esn> are not "
-                         "optimized: they combine the parts optimized alone, see canary.evaluate.conditions)")
+                         "optimized: they combine the parts optimized alone, see canopy.evaluate_utils.conditions)")
 
     study_name = study_name_of(model, size)
     study = optuna.create_study(study_name=study_name, storage=storage(study_name), direction="maximize", load_if_exists=True)

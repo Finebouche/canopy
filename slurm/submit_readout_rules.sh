@@ -1,5 +1,5 @@
 #!/bin/bash
-# Learning rules of the readout of the next phrase (canary.next_phrase_prediction.readout_rules) on PlaFRIM, one job per
+# Learning rules of the readout of the next phrase (canopy.next_phrase_prediction.readout_rules) on PlaFRIM, one job per
 # condition (reservoirs and readouts of the studies of the readout, HAG_CANARY_TAIL_HPO=1), on the zonda nodes (no rare
 # resource), then the merge of their results and the paired comparisons with ridge. Run from the root of a checkout of
 # canopy:
@@ -24,7 +24,7 @@ micromamba activate hag_env
 set -u
 TASKS=slurm/tasks/readout_rules_$(date +%Y%m%d_%H%M%S)_${HAG_CANARY_LEAK:-0}.txt
 HAG_CANARY_STUDIES=$PWD/outputs/canary/studies PYTHONPATH=$PWD:${HAG_DIR:-$HOME/hag_core} \
-    python -m canary.next_phrase_prediction.readout_rules list "$SIZES" 2>/dev/null | grep -E "^[^ ]+ [0-9]+$" > "$TASKS"
+    python -m canopy.next_phrase_prediction.readout_rules list "$SIZES" 2>/dev/null | grep -E "^[^ ]+ [0-9]+$" > "$TASKS"
 n=$(wc -l < "$TASKS")
 
 array=$(sbatch --parsable "${NODES[@]}" --array=0-$((n - 1))%$MAX_RUNNING --cpus-per-task=$CPUS --mem=48G \

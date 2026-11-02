@@ -1,14 +1,14 @@
 """
-Final evaluation of the canary boundary detection on the test songs (used only here), after canary.next_phrase_prediction.hpo.
+Final evaluation of the canary boundary detection on the test songs (used only here), after canopy.next_phrase_prediction.hpo.
 
 Conditions, for each SIZE (number of neurons in all):
   - "mfcc" (no reservoir, once);
-  - the pure models (canary.models.PURE_MODELS) with the best parameters of their study "<model>_<SIZE>";
+  - the pure models (canopy.models.reservoirs.PURE_MODELS) with the best parameters of their study "<model>_<SIZE>";
   - "<hag>_proj": the parameters of "<hag>_<SIZE>" without the HAG learning;
   - "<hag>+<esn>": hybrid of the best parts optimized alone with SIZE / 2 neurons (the hybrids are not optimized).
 The ridge coefficient and the peak threshold are those of the best trial of the study, or, for the conditions without a
 study (mfcc, proj, hybrids), chosen with the same cross-validation on the train songs
-(canary.next_phrase_prediction.hpo.cross_validate). Missing studies are skipped.
+(canopy.next_phrase_prediction.hpo.cross_validate). Missing studies are skipped.
 
 For each seed (the same seeds for all the conditions, i.e. paired), the reservoirs are drawn with np.random.seed(seed)
 and learn (HAG) on phrases of all the train songs, the readout is trained on all the train songs and the boundaries of
@@ -16,24 +16,25 @@ the test songs are scored. Then paired comparisons by seed: mean difference of F
 interval and the p-value of the Wilcoxon signed-rank test.
 
 Results: outputs/canary/evaluation.csv (one row per condition, size and seed) and comparisons.csv.
-Usage: python -m canary.next_phrase_prediction.evaluate [sizes] [nb_seeds]   (default 250,500,1000 and 10 seeds)
+Usage: python -m canopy.next_phrase_prediction.evaluate [sizes] [nb_seeds]   (default 250,500,1000 and 10 seeds)
 """
 import sys
 
 import numpy as np
 import pandas as pd
 
-from canary.common import OUTPUTS, pretrain_phrases
-from canary.evaluate import compare, conditions as task_conditions
-from canary.models import build, normal_equations, readout_outputs, ridge_readout
-from canary.next_phrase_prediction.boundaries import load_dataset, scores
-from canary.next_phrase_prediction.hpo import cross_validate, study_name_of
+from canopy.common import OUTPUTS, pretrain_phrases
+from canopy.evaluate_utils import compare, conditions as task_conditions
+from canopy.models.reservoirs import build, normal_equations, readout_outputs, ridge_readout
+from canopy.next_phrase_prediction.boundaries import load_dataset, scores
+from canopy.next_phrase_prediction.hpo import cross_validate, study_name_of
 
 SIZES = [250, 500, 1000]
+REFERENCE = "random_ee"  # (condition of the paired comparisons)
 
 
 def conditions(size):
-    """canary.evaluate.conditions of the studies of the task (canary.next_phrase_prediction.hpo.study_name_of)."""
+    """canopy.evaluate_utils.conditions of the studies of the task (canopy.next_phrase_prediction.hpo.study_name_of)."""
     return task_conditions(size, study_name_of)
 
 
@@ -71,7 +72,7 @@ if __name__ == "__main__":
               f"{threshold:.2f})", flush=True)
 
     results = pd.DataFrame(rows)
-    comparisons = compare(results, metric="f1")
+    comparisons = compare(results, "f1", REFERENCE)
     pd.set_option("display.width", 200)
     print(comparisons.round(4).to_string(index=False))
     OUTPUTS.mkdir(parents=True, exist_ok=True)

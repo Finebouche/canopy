@@ -3,7 +3,7 @@ Canary song dataset (M1-2016-spring, https://zenodo.org/records/6521932): canary
 (A -> A -> B -> C ...), annotated segment by segment (phrases, calls, silences SIL and noises TRASH).
 
 The dataset is in CANARY_DIR: its annotations (ANNOTATIONS_DIR, tracked), those of the Zenodo record corrected, and
-its audio, downloaded from Zenodo into CANARY_DIR / "audio" (~855 MB), with the MFCC caches of canary.common (not
+its audio, downloaded from Zenodo into CANARY_DIR / "audio" (~855 MB), with the MFCC caches of canopy.common (not
 tracked).
 
 Tasks: whole songs (load_songs, the next-phrase prediction and the syllable classification of canary), or one instance

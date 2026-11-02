@@ -33,11 +33,12 @@ optimized with Optuna on the train songs, and evaluated on the test songs with p
 
 | Folder | Content |
 |:--|:--|
-| `canary/datasets` | The canary songs (`songs.py`): annotations, phrases, train/test split by song, MFCC |
-| `canary/datasets/Canary` | The dataset: its annotations (`annotations/`, tracked), those of the Zenodo record corrected (5 shifted songs, 21 relabeled phrases, see `songs.py`); its audio and MFCC caches (not tracked) |
-| `canary` | Shared parts: reservoirs of the tasks (`models.py`, in JAX), MFCC and HAG pretraining phrases (`common.py`), HPO (`hpo.py`), conditions and paired comparisons (`evaluate.py`), certainty along the phrases, generalized readout |
-| `canary/next_phrase_prediction` | Next-phrase prediction (`prediction.py`), phrase boundaries (`boundaries.py`, `evaluate.py`), their HPO and certainty |
-| `canary/syllables_classification` | Frame-by-frame syllable classification (`classification.py`), its HPO and certainty, canapy reference |
+| `canopy/datasets` | The canary songs (`songs.py`): annotations, phrases, train/test split by song, MFCC |
+| `canopy/datasets/Canary` | The dataset: its annotations (`annotations/`, tracked), those of the Zenodo record corrected (5 shifted songs, 21 relabeled phrases, see `songs.py`); its audio and MFCC caches (not tracked) |
+| `canopy` | Shared parts: MFCC and HAG pretraining phrases (`common.py`), HPO (`hpo_utils.py`), conditions and paired comparisons (`evaluate_utils.py`), certainty along the phrases |
+| `canopy/models` | Reservoirs of the tasks (`reservoirs.py`, in JAX), readouts: exploratory Hebbian (`eh_readout.py`), generalized (`generalized_readout.py`) |
+| `canopy/next_phrase_prediction` | Next-phrase prediction (`prediction.py`), phrase boundaries (`boundaries.py`, `evaluate.py`), their HPO and certainty |
+| `canopy/syllables_classification` | Frame-by-frame syllable classification (`classification.py`), its HPO and certainty, canapy reference |
 | `outputs/canary` | Results (CSV); Optuna studies in `outputs/canary/studies` (not tracked) |
 | `slurm` | Jobs on PlaFRIM: HPO, evaluations (`submit_canary.sh`, `submit_next_phrase.sh`, `submit_syllables.sh`, `canary.sbatch`) |
 | `ETAT_DES_TRAVAUX.md` | State of the work (in French): what was tested, the conclusions, what to rerun with the final annotations |
@@ -62,7 +63,7 @@ pip install --no-deps -e ../hag -e .
 The environment of hag (`hag_env`) works too, with `PYTHONPATH=$PWD`.
 
 The audio (~855 MB) is downloaded from Zenodo at the first loading of the songs, and the MFCC are computed once and
-cached (`canary/datasets/Canary/boundary_features_*.pkl`).
+cached (`canopy/datasets/Canary/boundary_features_*.pkl`).
 
 ---
 ## ▶️ Usage
@@ -70,9 +71,9 @@ cached (`canary/datasets/Canary/boundary_features_*.pkl`).
 From the root of the repository (`PYTHONPATH=$PWD`), for example:
 
 ```bash
-HAG_CANARY_TASK=next_phrase HAG_CANARY_CALLS=1 HAG_CANARY_LEAK=1 python -m canary.next_phrase_prediction.hpo mean_hag 1000
-HAG_CANARY_TASK=next_phrase HAG_CANARY_CALLS=1 HAG_CANARY_LEAK=1 python -m canary.next_phrase_prediction.prediction 500,1000 10
-python -m canary.syllables_classification.classification 250,500,1000 10
+HAG_CANARY_TASK=next_phrase HAG_CANARY_CALLS=1 HAG_CANARY_LEAK=1 python -m canopy.next_phrase_prediction.hpo mean_hag 1000
+HAG_CANARY_TASK=next_phrase HAG_CANARY_CALLS=1 HAG_CANARY_LEAK=1 python -m canopy.next_phrase_prediction.prediction 500,1000 10
+python -m canopy.syllables_classification.classification 250,500,1000 10
 ```
 
 The variables `HAG_CANARY_*` (task, variants of the studies, readouts) are documented in the docstrings of the

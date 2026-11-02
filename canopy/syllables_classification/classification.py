@@ -5,21 +5,21 @@ canapy's frame accuracy: the share of the frames of the recordings (silences inc
 likely class, no post-processing) is the annotated label. A frame k is labeled with the annotated segment that covers
 it, frames from floor(onset / hop) to floor(offset / hop) (canapy's as_frame_comparison), SIL elsewhere.
 
-Songs, MFCC (44.1 kHz) and reservoirs of canary.syllables_classification (common, models): the conditions of
-canary.syllables_classification.evaluate.conditions, with the best parameters of the syllable studies
-(canary.syllables_classification.hpo, optimized on the out-of-fold frame accuracy). The readout is a ridge regression on the
-one-hot labels (centered statistics, canary.models.normal_equations), its coefficient chosen by a
+Songs, MFCC (44.1 kHz) and reservoirs of canopy.syllables_classification (common, models): the conditions of
+canopy.syllables_classification.evaluate.conditions, with the best parameters of the syllable studies
+(canopy.syllables_classification.hpo, optimized on the out-of-fold frame accuracy). The readout is a ridge regression on the
+one-hot labels (centered statistics, canopy.models.reservoirs.normal_equations), its coefficient chosen by a
 3-fold cross-validation by song on the train songs (out-of-fold frame accuracy), then trained on all the train songs
-and scored on the test songs for each seed (paired comparisons, canary.evaluate.compare).
+and scored on the test songs for each seed (paired comparisons, canopy.evaluate_utils.compare).
 
 Results: outputs/canary/<prefix of the studies>hpo.csv and ..._comparisons.csv (syllables_hpo.csv,
 syllables_gains_hpo.csv with HAG_CANARY_INPUT_GAINS=1, syllables_gains_leak_hpo.csv with HAG_CANARY_LEAK=1 too).
 Usage:
-  python -m canary.syllables_classification.classification [sizes] [nb_seeds]   all the conditions (default 250,500,1000, 10 seeds)
-  python -m canary.syllables_classification.classification run <condition> <size> [nb_seeds]   one condition (one job of slurm/submit_syllables.sh),
+  python -m canopy.syllables_classification.classification [sizes] [nb_seeds]   all the conditions (default 250,500,1000, 10 seeds)
+  python -m canopy.syllables_classification.classification run <condition> <size> [nb_seeds]   one condition (one job of slurm/submit_syllables.sh),
                                                                         results in outputs/canary/syllables_parts
-  python -m canary.syllables_classification.classification merge                               results of the parts and the comparisons
-  python -m canary.syllables_classification.classification list <sizes>                        "<condition> <size>" of all the conditions
+  python -m canopy.syllables_classification.classification merge                               results of the parts and the comparisons
+  python -m canopy.syllables_classification.classification list <sizes>                        "<condition> <size>" of all the conditions
 """
 import sys
 
@@ -27,13 +27,13 @@ import numpy as np
 import pandas as pd
 from sklearn.model_selection import KFold
 
-from canary.datasets.songs import annotations_of_songs
-from canary.common import OUTPUTS, RIDGES, load_dataset, pretrain_phrases
-from canary.evaluate import compare
-from canary.hpo import CV_SEED, FOLD_SEED, N_FOLDS
-from canary.models import build, normal_equations, ridge_readout, state_chunks
-from canary.syllables_classification.evaluate import SIZES, conditions
-from canary.syllables_classification.hpo import STUDY_PREFIX
+from canopy.datasets.songs import annotations_of_songs
+from canopy.common import OUTPUTS, RIDGES, load_dataset, pretrain_phrases
+from canopy.evaluate_utils import compare
+from canopy.hpo_utils import CV_SEED, FOLD_SEED
+from canopy.models.reservoirs import build, normal_equations, ridge_readout, state_chunks
+from canopy.syllables_classification.evaluate import REFERENCE, SIZES, conditions
+from canopy.syllables_classification.hpo import N_FOLDS, STUDY_PREFIX
 
 SILENCE = "SIL"
 
@@ -128,7 +128,7 @@ def run(todo, nb_seeds):
 
 
 def save(results):
-    comparisons = compare(results, metric="frame_accuracy")
+    comparisons = compare(results, "frame_accuracy", REFERENCE)
     pd.set_option("display.width", 200)
     print(comparisons.round(4).to_string(index=False))
     OUTPUTS.mkdir(parents=True, exist_ok=True)

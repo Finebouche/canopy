@@ -1,8 +1,8 @@
 """
-Exploratory Hebbian readout of Hoerzer, Legenstein & Maass (2014) (the rule of canary.eh_readout.EH, see its docstring
+Exploratory Hebbian readout of Hoerzer, Legenstein & Maass (2014) (the rule of canopy.models.eh_readout.EH, see its docstring
 for the rule and its options) trained in JAX: the steps of a pass over the rows in a compiled lax.scan, about 6 times
 faster than the reservoirpy node's loop over the steps. The exploration noise is drawn with the NumPy generator, in the
-order of canary.eh_readout.EH (one draw of output_dim values per step): with the same generator, the same weights
+order of canopy.models.eh_readout.EH (one draw of output_dim values per step): with the same generator, the same weights
 (float64).
 
 Example (rows of all the training songs, the order of the rows at each epoch):
@@ -51,7 +51,7 @@ def eh_epoch(carry, X, Y, order, noise, learning_rate, alpha, baseline, reward, 
 
 
 class EH:
-    """EH readout, initial weights and bias zero (the options and defaults of canary.eh_readout.EH)."""
+    """EH readout, initial weights and bias zero (the options and defaults of canopy.models.eh_readout.EH)."""
 
     def __init__(self, learning_rate=1e-3, decay=None, noise=0.5, baseline="filtered", alpha=0.2, reward="per_output",
                  modulation="binary", fit_bias=True, seed=None):

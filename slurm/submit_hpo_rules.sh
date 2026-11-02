@@ -1,6 +1,6 @@
 #!/bin/bash
 # Optimization of the reservoirs and of the readout of the next phrase with the readout trained by an online rule
-# (canary.next_phrase_prediction.hpo with HAG_CANARY_HPO_RULE: studies next_phrase_calls_[leak_]tail_<rule>_<model>_<size>)
+# (canopy.next_phrase_prediction.hpo with HAG_CANARY_HPO_RULE: studies next_phrase_calls_[leak_]tail_<rule>_<model>_<size>)
 # on PlaFRIM, on the zonda nodes (no rare resource): a job array for each rule and leak, one study per job. Run from
 # the root of a checkout of canopy with the audio and the MFCC caches (the compute nodes have no internet):
 #   [RULES="lms eh_np_local"] [PURE="var_hag random_ei"] [SIZES="500 1000"] [LEAKS="0 1"] [N_TRIALS=400] \
@@ -21,8 +21,8 @@ TIME=${TIME:-3-00:00:00}
 BEGIN=${BEGIN:-20:00}
 cd "$(dirname "$0")/.."
 mkdir -p slurm/logs slurm/tasks outputs/canary/studies
-if ! find canary/datasets/Canary/audio -name "*.wav" | grep -q . || [ ! -f canary/datasets/Canary/boundary_features_44100_no_floor.pkl ]; then
-    echo "canary/datasets/Canary: audio or MFCC cache missing (the compute nodes have no internet)" >&2
+if ! find canopy/datasets/Canary/audio -name "*.wav" | grep -q . || [ ! -f canopy/datasets/Canary/boundary_features_44100_no_floor.pkl ]; then
+    echo "canopy/datasets/Canary: audio or MFCC cache missing (the compute nodes have no internet)" >&2
     exit 1
 fi
 

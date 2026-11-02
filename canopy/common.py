@@ -1,6 +1,6 @@
 """
-Songs of the canary tasks (canary.next_phrase_prediction, canary.syllables_classification): MFCC features of the songs
-of canary.datasets.songs.load_songs (cached in FEATURES_CACHE, with their train/test split and their phrases) and HAG
+Songs of the canary tasks (canopy.next_phrase_prediction, canopy.syllables_classification): MFCC features of the songs
+of canopy.datasets.songs.load_songs (cached in FEATURES_CACHE, with their train/test split and their phrases) and HAG
 pretraining phrases.
 """
 from pathlib import Path
@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 
-from canary.datasets.songs import (CANARY_DIR, SONGS_SAMPLING_RATE, annotations_of_songs, build_phrase_sequences,
+from canopy.datasets.songs import (CANARY_DIR, SONGS_SAMPLING_RATE, annotations_of_songs, build_phrase_sequences,
                                    canary_mfcc_config, load_songs, phrase_boundaries, song_phrases, songs_mfcc)
 from hag.datasets.preprocessing import scale_data
 

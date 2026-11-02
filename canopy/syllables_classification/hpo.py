@@ -1,21 +1,21 @@
 """
-Hyperparameter optimization of the syllable classification (canary.syllables_classification.classification), on the train
-songs only (the test songs are used once, by canary.syllables_classification.classification).
+Hyperparameter optimization of the syllable classification (canopy.syllables_classification.classification), on the train
+songs only (the test songs are used once, by canopy.syllables_classification.classification).
 
 Objective: out-of-fold frame accuracy of the syllable classification, in a 3-fold cross-validation by song on the
-train songs (canary.syllables_classification.classification.choose_ridge: in each fold, the reservoirs are built, HAG learning
+train songs (canopy.syllables_classification.classification.choose_ridge: in each fold, the reservoirs are built, HAG learning
 on phrases of the fold's training songs, and the ridge readout is trained for every coefficient of RIDGES; the ridge
 coefficient is chosen on the out-of-fold frames, stored in the trial (user attribute "ridge") for the final evaluation).
 The ridge coefficient is thus not a hyperparameter of the search, for all the models.
 
-Studies: "syllables_<model>_<size>" (see canary.models), "syllables_gains_<model>_<size>" with
+Studies: "syllables_<model>_<size>" (see canopy.models.reservoirs), "syllables_gains_<model>_<size>" with
 HAG_CANARY_INPUT_GAINS=1 (gain of each group of input features in the search, see objective_function) and
 "syllables_gains_leak_<model>_<size>" with HAG_CANARY_LEAK=1 too (leak rate of each reservoir in the search, instead of
 1); one SQLite database each in STUDIES_DIR (HAG_CANARY_STUDIES, default outputs/canary/studies), for the pure models
-(canary.models.PURE_MODELS; the hybrids are not optimized, they combine the parts optimized alone:
-canary.evaluate.conditions).
+(canopy.models.reservoirs.PURE_MODELS; the hybrids are not optimized, they combine the parts optimized alone:
+canopy.evaluate_utils.conditions).
 
-Usage: python -m canary.syllables_classification.hpo <model> <size>   (N_TRIALS trials)
+Usage: python -m canopy.syllables_classification.hpo <model> <size>   (N_TRIALS trials)
   workers: HAG_CANARY_WORKERS processes (default 1) optimizing the same study.
 """
 import os
@@ -27,13 +27,15 @@ from optuna.samplers import TPESampler
 from optuna.study import MaxTrialsCallback
 from optuna.trial import TrialState
 
-from canary.common import load_dataset
-from canary.hpo import N_TRIALS, stop_after_failures, storage
-from canary.models import ESN_MODELS, HAG_MODELS, PURE_MODELS, parts
+from canopy.common import load_dataset
+from canopy.hpo_utils import stop_after_failures, storage
+from canopy.models.reservoirs import ESN_MODELS, HAG_MODELS, PURE_MODELS, parts
 
 # gain of each group of input features (MFCC, deltas, delta-deltas) in the search, studies "syllables_gains_*"
 INPUT_GAINS = os.environ.get("HAG_CANARY_INPUT_GAINS") == "1"
 LEAK = os.environ.get("HAG_CANARY_LEAK") == "1"
+N_FOLDS = 3  # (cross-validation by song on the train songs)
+N_TRIALS = int(os.environ.get("HAG_CANARY_N_TRIALS", 400))
 # prefix of the studies and of the results of the syllable classification
 STUDY_PREFIX = "syllables_" + "gains_" * INPUT_GAINS + "leak_" * LEAK
 
@@ -44,13 +46,13 @@ def study_name_of(model, size):
 
 def load_task_dataset():
     """(songs, train songs, frame, classes of the syllable classification)."""
-    from canary.syllables_classification.classification import add_frame_labels
+    from canopy.syllables_classification.classification import add_frame_labels
     songs, train_songs, _, frame = load_dataset()
     return songs, train_songs, frame, add_frame_labels(songs, frame)
 
 
 def objective_function(model, size, songs, train_songs, frame, classes):
-    from canary.syllables_classification.classification import choose_ridge
+    from canopy.syllables_classification.classification import choose_ridge
     length = max(int(end / frame) + 1 - int(start / frame) for w in train_songs for start, end, _ in songs[w]["phrases"])
 
     def objective(trial):
@@ -106,7 +108,7 @@ if __name__ == "__main__":
     n_workers = int(os.environ.get("HAG_CANARY_WORKERS", 1))
     if model not in PURE_MODELS:
         raise ValueError(f"Unknown model {model}, expected one of {PURE_MODELS} (the hybrids <hag>+<esn> are not "
-                         "optimized: they combine the parts optimized alone, see canary.evaluate.conditions)")
+                         "optimized: they combine the parts optimized alone, see canopy.evaluate_utils.conditions)")
 
     study_name = study_name_of(model, size)
     study = optuna.create_study(study_name=study_name, storage=storage(study_name), direction="maximize", load_if_exists=True)

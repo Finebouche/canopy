@@ -1,27 +1,27 @@
 """
 Does the certainty of the syllable classification rise along a phrase? After training the readout of the syllable
-classification (canary.syllables_classification.classification), on every phrase of the test songs (merged annotated segments
+classification (canopy.syllables_classification.classification), on every phrase of the test songs (merged annotated segments
 of one syllable type, SIL, TRASH and calls excluded: songs[w]["phrases"]), frame by frame, the output of the unit of the
 true class, its margin and the correctness (canapy's frame accuracy), along the phrase
-(canary.certainty).
+(canopy.certainty).
 
-Reservoirs: best parameters of the syllable studies (canary.syllables_classification.evaluate.conditions, with the variables
+Reservoirs: best parameters of the syllable studies (canopy.syllables_classification.evaluate.conditions, with the variables
 of the studies, e.g. HAG_CANARY_INPUT_GAINS=1, HAG_CANARY_LEAK=1), ridge of the best trial of the study (or chosen by the
-cross-validation of canary.syllables_classification.classification). Results: outputs/canary/certainty_<size>.csv (bins),
+cross-validation of canopy.syllables_classification.classification). Results: outputs/canary/certainty_<size>.csv (bins),
 certainty_<size>_phrases.csv (first / last third per condition and seed) and certainty_<size>.png.
 
-Usage: python -m canary.syllables_classification.certainty [size] [conditions] [nb_seeds]
+Usage: python -m canopy.syllables_classification.certainty [size] [conditions] [nb_seeds]
   (default 1000, mean_hag,var_hag,random_ee,random_ee_dense, 3 seeds)
 """
 import sys
 
 import numpy as np
 
-from canary.certainty import MIN_FRAMES, curve, evaluate_conditions, save, summarize
-from canary.common import load_dataset, pretrain_phrases
-from canary.models import build, normal_equations, ridge_readout, state_chunks
-from canary.syllables_classification.classification import add_frame_labels, choose_ridge
-from canary.syllables_classification.evaluate import conditions
+from canopy.certainty import MIN_FRAMES, curve, evaluate_conditions, save, summarize
+from canopy.common import load_dataset, pretrain_phrases
+from canopy.models.reservoirs import build, normal_equations, ridge_readout, state_chunks
+from canopy.syllables_classification.classification import add_frame_labels, choose_ridge
+from canopy.syllables_classification.evaluate import conditions
 
 
 def run(condition, model, params, size, ridge, songs, train_songs, test_songs, frame, classes, seed):

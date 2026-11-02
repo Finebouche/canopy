@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from canary.eh_readout import EH
+from canopy.models.eh_readout import EH
 
 
 def clusters(rng, centers, n):
