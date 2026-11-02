@@ -32,9 +32,11 @@ With HAG_CANARY_HPO_RULE=<rule> ("next_phrase_..._<rule>_*" studies), the readou
 canopy.next_phrase_prediction.readout_rules (e.g. "lms", "eh_np_local") instead of the ridge regression; the readout is
 "last" -> "last" (the last state of the window of each point), or searched with HAG_CANARY_TAIL_HPO=1
 ("next_phrase_..._tail_<rule>_*" studies). Its learning rate (LMS and EH) is in the search ("readout:rate",
-log-uniform in HPO_RULE_RATES: one training per fold, not the grid of readout_rules); its other hyperparameters (number
-of epochs, up to HPO_RULE_MAX_EPOCHS, normalization, RLS's alpha) are chosen in the cross-validation like the ridge
-coefficient (readout_rules.choose), stored in the trial (user attribute "readout_rule").
+log-uniform in HPO_RULE_RATES: one training per fold, not the grid of readout_rules), the amplitude of the
+exploration noise of EH ("readout:noise", log-uniform in HPO_RULE_NOISES) and the coefficient alpha of RLS (initial P =
+I / alpha, "readout:alpha", log-uniform in HPO_RULE_ALPHAS, centered inputs, one epoch); its other hyperparameters
+(number of epochs, up to HPO_RULE_MAX_EPOCHS, normalization of LMS and EH) are chosen in the cross-validation like the
+ridge coefficient (readout_rules.choose), stored in the trial (user attribute "readout_rule").
 (The syllable classification has its own package, canopy.syllables_classification.)
 
 Usage: python -m canopy.next_phrase_prediction.hpo <model> <size>   (N_TRIALS trials)
@@ -73,6 +75,11 @@ HPO_RULE = os.environ.get("HAG_CANARY_HPO_RULE") if TASK == "next_phrase" and no
 # range of the normalized learning rate of the online rules (readout_rules: c / mean ||x||^2, LMS stable below 2)
 HPO_RULE_RATES = {"lms": (1e-3, 0.3), "eh": (1e-2, 1.0), "eh_np": (1e-2, 1.0), "eh_np_local": (1e-2, 1.0)}
 HPO_RULE_MAX_EPOCHS = 1000  # (training of the online rules: the number of epochs chosen up to this one)
+# range of the amplitude of the exploration noise of the EH rules (uniform in [-noise, noise] on each output, one-hot
+# targets; Hoerzer et al. 2014: 0.5)
+HPO_RULE_NOISES = {"eh": (0.05, 2.0), "eh_np": (0.05, 2.0), "eh_np_local": (0.05, 2.0)}
+# range of the coefficient alpha of RLS (initial P = I / alpha: the ridge coefficient of the centered inputs)
+HPO_RULE_ALPHAS = {"rls": (1e-10, 1e-3)}
 # prefix of the studies and of the results of the next-phrase prediction
 STUDY_PREFIX = (f"{TASK}_" + "calls_" * CALLS + "reset_" * RESET + "leak_" * LEAK + "tail_" * (TAIL_HPO and not TAIL_SEPARATE)
                 + "tail2_" * TAIL_SEPARATE + (f"{HPO_RULE}_" if HPO_RULE else "")
@@ -151,11 +158,15 @@ def objective_function(model, size, songs, train_songs, frame, classes=None):
                     params["readout:decision_mean"] = trial.suggest_categorical("readout:decision_mean", [True, False])
                 readout = readout_of_params(params)
             if HPO_RULE:
-                from canopy.next_phrase_prediction.readout_rules.__main__ import choose
+                from canopy.next_phrase_prediction.readout_rules import choose
                 rate = (trial.suggest_float("readout:rate", *HPO_RULE_RATES[HPO_RULE], log=True)
                         if HPO_RULE in HPO_RULE_RATES else None)
+                noise = (trial.suggest_float("readout:noise", *HPO_RULE_NOISES[HPO_RULE], log=True)
+                         if HPO_RULE in HPO_RULE_NOISES else None)
+                alpha = (trial.suggest_float("readout:alpha", *HPO_RULE_ALPHAS[HPO_RULE], log=True)
+                         if HPO_RULE in HPO_RULE_ALPHAS else None)
                 chosen, _ = choose(model, params, size, songs, train_songs, frame, classes, readout, [HPO_RULE], rate,
-                                   HPO_RULE_MAX_EPOCHS)
+                                   HPO_RULE_MAX_EPOCHS, noise, alpha)
                 hyper, accuracy = chosen[HPO_RULE]
                 trial.set_user_attr("readout_rule", hyper)
                 return accuracy

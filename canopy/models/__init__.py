@@ -1,4 +1,4 @@
 """
-Models of the canary tasks: the reservoirs (reservoirs) and the readouts, learned by reward-modulated Hebbian learning
-(eh_readout) or the generalized readout (generalized_readout).
+Models of the canary tasks: the reservoirs (reservoirs) and the readouts, trained online (readout_rules: LMS and
+reward-modulated Hebbian learning, EH) or the generalized readout (generalized_readout).
 """

@@ -6,10 +6,10 @@ same reservoirs: from the least to the most biologically plausible,
   - "rls": online recursive least squares (reservoirpy's RLS, the RLS-based FORCE rule of Sussillo & Abbott 2009,
     non-local: each synapse uses the inverse correlation matrix of all the inputs), initial P = I / alpha;
   - "lms": online least mean squares (the rule of reservoirpy's LMS, the LMS-based FORCE rule: local, but each readout
-    needs its exact error; trained in JAX, readout_rules.lms), learning rate c / mean ||x||^2 (c the normalized rate,
+    needs its exact error; trained in JAX, canopy.models.readout_rules.lms), learning rate c / mean ||x||^2 (c the normalized rate,
     stable below 2);
-  - "eh": the exploratory Hebbian rule of Hoerzer et al. (2014) (the rule of canopy.models.eh_readout.EH, the paper's: filtered
-    baselines, a single global binary reward for all the readouts, no teacher; trained in JAX, readout_rules.eh),
+  - "eh": the exploratory Hebbian rule of Hoerzer et al. (2014) (the rule of canopy.models.readout_rules.eh_numpy.EH, the paper's: filtered
+    baselines, a single global binary reward for all the readouts, no teacher; trained in JAX, canopy.models.readout_rules.eh),
     learning rate c / mean ||x||^2;
   - "eh_np": the same with the baseline "sample" (node perturbation of Fiete & Seung 2006: the reward compared with
     that of the output without noise on the same input; not the paper's rule, which does not know the noise), global
@@ -53,12 +53,12 @@ from sklearn.model_selection import KFold
 
 from canopy.common import OUTPUTS, RIDGES, load_dataset, pretrain_phrases
 from canopy.hpo_utils import CV_SEED, FOLD_SEED
+from canopy.models.readout_rules.eh import EH
+from canopy.models.readout_rules.lms import LMS
 from canopy.models.reservoirs import build
 from canopy.next_phrase_prediction.hpo import N_FOLDS, STUDY_PREFIX, TAIL_HPO, TAIL_SEPARATE
 from canopy.next_phrase_prediction.prediction import (NAME, all_conditions, decision_of, fitted_readouts, metrics,
                                                       point_windows, prepare, readout_of, training_of)
-from canopy.next_phrase_prediction.readout_rules.eh import EH
-from canopy.next_phrase_prediction.readout_rules.lms import LMS
 
 RULES = os.environ.get("HAG_CANARY_READOUT_RULES", "ridge,rls,lms,eh,eh_np,eh_np_local").split(",")
 NORMALIZATIONS = ["center", "standardize"]  # (inputs of RLS; LMS and EH: "standardize", better in all the conditions)
@@ -90,18 +90,22 @@ def song_data(reservoirs, songs, waves, readout, classes):
     return states, rows
 
 
-def configurations(rule, rate=None, max_epochs=None):
+def configurations(rule, rate=None, max_epochs=None, noise=None, alpha=None):
     """[(hyperparameters, epochs)] of a rule: a run of the online rules for each hyperparameters, scored after each
     number of epochs of EPOCHS (at most max_epochs) (LMS and EH: the learning rates of the grid, or the single one
-    rate)."""
+    rate; EH: the exploration noise EH_NOISE, or noise; RLS: the grid of NORMALIZATIONS and RLS_ALPHAS, or the single
+    alpha with centered inputs)."""
     epochs = [e for e in EPOCHS if max_epochs is None or e <= max_epochs]
     if rule == "ridge":
         return [(dict(ridge=float(r)), [None]) for r in RIDGES]
     if rule == "rls":
+        if alpha:
+            return [(dict(normalization="center", alpha=float(alpha)), RLS_EPOCHS)]
         return [(dict(normalization=n, alpha=float(a)), RLS_EPOCHS) for n in NORMALIZATIONS for a in RLS_ALPHAS]
     if rule == "lms":
         return [(dict(normalization="standardize", rate=c), epochs) for c in ([rate] if rate else LMS_RATES)]
-    return [(dict(normalization="standardize", rate=c, noise=EH_NOISE), epochs) for c in ([rate] if rate else EH_RATES)]
+    return [(dict(normalization="standardize", rate=c, noise=noise or EH_NOISE), epochs)
+            for c in ([rate] if rate else EH_RATES)]
 
 
 def normalized(hyper, rows, states, fit):
@@ -155,10 +159,11 @@ def accuracy_counts(scores, true, classes):
         return int((classes[np.nan_to_num(scores, nan=-np.inf).argmax(axis=1)] == true).sum())
 
 
-def choose(model, params, size, songs, train_songs, frame, classes, readout, rules, rate=None, max_epochs=None):
+def choose(model, params, size, songs, train_songs, frame, classes, readout, rules, rate=None, max_epochs=None,
+           noise=None, alpha=None):
     """({rule: (hyperparameters with "epochs", out-of-fold accuracy)} of the best configuration of each rule, out-of-fold
-    accuracy of each configuration and number of epochs), in the 3-fold cross-validation by song of the studies (LMS
-    and EH: the learning rates of the grid, or the single one rate)."""
+    accuracy of each configuration and number of epochs), in the 3-fold cross-validation by song of the studies (the
+    configurations of configurations(rule, rate, max_epochs, noise, alpha))."""
     correct, total = {}, 0
     for k, (fit_index, val_index) in enumerate(KFold(N_FOLDS, shuffle=True, random_state=FOLD_SEED).split(train_songs)):
         np.random.seed(CV_SEED + k)
@@ -167,7 +172,7 @@ def choose(model, params, size, songs, train_songs, frame, classes, readout, rul
         all_states, all_rows = song_data(reservoirs, songs, fit + val, readout, classes)
         true = np.concatenate([songs[w]["next"] for w in val])
         for rule in rules:
-            for c, (hyper, epochs) in enumerate(configurations(rule, rate, max_epochs)):
+            for c, (hyper, epochs) in enumerate(configurations(rule, rate, max_epochs, noise, alpha)):
                 rng = np.random.default_rng([CV_SEED + k, c])
                 rows, states = normalized(hyper, all_rows, all_states, fit)
                 X_val = np.vstack([states[w] for w in val])
@@ -179,8 +184,8 @@ def choose(model, params, size, songs, train_songs, frame, classes, readout, rul
     for rule in rules:
         (_, c, epoch), count = max(((key, count) for key, count in correct.items() if key[0] == rule),
                                    key=lambda item: item[1])
-        chosen[rule] = (dict(configurations(rule, rate, max_epochs)[c][0], epochs=epoch), count / total)
-    curves = pd.DataFrame([dict(rule=rule, **configurations(rule, rate, max_epochs)[c][0], epochs=epoch,
+        chosen[rule] = (dict(configurations(rule, rate, max_epochs, noise, alpha)[c][0], epochs=epoch), count / total)
+    curves = pd.DataFrame([dict(rule=rule, **configurations(rule, rate, max_epochs, noise, alpha)[c][0], epochs=epoch,
                                 cv_accuracy=count / total)
                            for (rule, c, epoch), count in correct.items()])
     return chosen, curves

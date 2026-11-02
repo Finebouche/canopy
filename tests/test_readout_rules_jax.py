@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 from reservoirpy.nodes import LMS as NumpyLMS
 
-from canopy.models.eh_readout import EH as NumpyEH
-from canopy.next_phrase_prediction.readout_rules.__main__ import trained
-from canopy.next_phrase_prediction.readout_rules.eh import EH
-from canopy.next_phrase_prediction.readout_rules.lms import LMS
+from canopy.models.readout_rules.eh_numpy import EH as NumpyEH
+from canopy.models.readout_rules.eh import EH
+from canopy.models.readout_rules.lms import LMS
+from canopy.next_phrase_prediction.readout_rules import trained
 
 
 def data(rng, n=300, d=20, k=4):
