@@ -13,6 +13,11 @@ songs the consecutive segments of the same label merged (phrases). Their feature
 delta-deltas (canopy.datasets.songs.songs_mfcc) without floor of the dB, with a window and a band of frequencies suited
 to the species (MFCC below), cached in the directory of the dataset (mfcc_no_floor.pkl; the canary songs: the cache of
 canopy.common.load_dataset).
+
+Listening (denoised): the audio of a recording with its background noise removed by spectral subtraction (Wiener
+gain): the noise of each frequency is measured in the parts of the recording without annotated segment
+(noise_profile), and each bin of the spectrogram attenuated by the share of this noise in its power (the faint whale
+calls of kerguelen2014, near the level of the noise: their band, 15-80 Hz, has the chorus of distant whales).
 """
 import pickle
 from dataclasses import dataclass, field
@@ -21,6 +26,7 @@ import numpy as np
 import pandas as pd
 import soundfile as sf
 from joblib import Parallel, delayed
+from scipy.ndimage import uniform_filter
 
 from canopy.datasets.songs import DATASETS_DIR, SONGS_SAMPLING_RATE, canary_mfcc_config, song_phrases, songs_mfcc
 
@@ -33,13 +39,15 @@ class Vocalizations:
     sampling rate sr); merge_repeats, whether the consecutive segments of the same label are merged (canary phrases);
     spectrogram, (n_fft, hop_length, highest frequency in Hz) of the spectrograms shown; context, seconds of silence
     played before and after a segment, at most; speed, playback speed of the audio (sped up or slowed down to be
-    audible and playable by a browser: infrasounds, ultrasounds)."""
+    audible and playable by a browser: infrasounds, ultrasounds); denoise, whether the audio listened to is denoised by
+    default (denoised)."""
     mfcc: dict
     merge_repeats: bool = False
     spectrogram: tuple = (1024, 256, 10000)
     context: float = 0.2
     speed: float = 1.0
     ignored_labels: tuple = field(default=("SIL",))
+    denoise: bool = False
 
 
 DATASETS = {
@@ -49,7 +57,7 @@ DATASETS = {
                                       spectrogram=(512, 64, 10000), context=0.1),
     "kerguelen2014": Vocalizations(dict(sr=250, n_mfcc=13, n_fft=256, win_length=256, hop_length=64, fmin=10, fmax=125,
                                         n_mels=32, lifter=40, deltas=True, top_db=None),
-                                   spectrogram=(256, 16, 125), context=5.0, speed=16.0),
+                                   spectrogram=(256, 16, 125), context=5.0, speed=16.0, denoise=True),
     "llb3": Vocalizations(dict(canary_mfcc_config(44100), top_db=None), merge_repeats=True),
     "mouse_usv": Vocalizations(dict(sr=300000, n_mfcc=13, n_fft=1024, win_length=1024, hop_length=256, fmin=20000,
                                     fmax=120000, n_mels=64, lifter=40, deltas=True, top_db=None),
@@ -139,3 +147,34 @@ def load_vocalizations(name, max_songs=None, seed=0):
     wav_paths = {path.name: path for path in audio_dir.rglob("*.wav")}
     return dict(songs=songs, train_songs=train_songs, test_songs=test_songs, frame=frame, annotations=annotations,
                 wav_paths=wav_paths, phrases=phrases, settings=settings)
+
+
+
+MIN_NOISE_FRAMES = 20  # frames of the STFT without segment, at least, for a noise profile
+GAIN_FLOOR = 0.05  # lowest gain of the denoising (-26 dB: some background left, fewer artifacts)
+POWER_SMOOTHING = (3, 5)  # (frequency bins, frames) of the smoothing of the power of the extract (denoising)
+
+
+def noise_profile(audio, rate, segments, n_fft):
+    """Mean power of each frequency of the STFT of audio (a whole recording, at rate; window n_fft, hop n_fft / 4) over
+    its frames outside the segments [(start, end, ...)] (their windows included): its background noise; None with fewer
+    than MIN_NOISE_FRAMES such frames."""
+    import librosa
+    power = np.abs(librosa.stft(audio, n_fft=n_fft, hop_length=n_fft // 4)) ** 2
+    times = np.arange(power.shape[1]) * (n_fft // 4) / rate  # (centers of the frames)
+    half = n_fft / 2 / rate
+    noise = np.ones(len(times), bool)
+    for start, end, *_ in segments:
+        noise &= (times < start - half) | (times > end + half)
+    return power[:, noise].mean(axis=1) if noise.sum() >= MIN_NOISE_FRAMES else None
+
+
+def denoised(audio, profile, n_fft, floor=GAIN_FLOOR, smoothing=POWER_SMOOTHING):
+    """audio (an extract of a recording) denoised by spectral subtraction (Wiener gain): each bin of its STFT multiplied
+    by 1 - noise power / its power (profile of noise_profile; the power smoothed over smoothing (frequency bins,
+    frames), against the musical noise), at least floor."""
+    import librosa
+    S = librosa.stft(audio, n_fft=n_fft, hop_length=n_fft // 4)
+    power = uniform_filter(np.abs(S) ** 2, size=smoothing, mode="nearest")
+    gain = np.clip(1 - profile[:, None] / np.maximum(power, 1e-30), floor, 1)
+    return librosa.istft(S * gain, hop_length=n_fft // 4, length=len(audio)).astype(np.float32)
