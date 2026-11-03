@@ -99,8 +99,6 @@ def readout_of(points, decision, tail, decision_tail=None):
     if points not in ("last",) + TAIL_MODES or decision not in ("last", "tail_mean"):
         raise ValueError(f"Unknown readout {points} -> {decision}: HAG_CANARY_POINTS last, tail or tail_mean, "
                          f"HAG_CANARY_DECISION last or tail_mean")
-    if READOUT_ORDER > 1 and points == "tail":
-        raise ValueError("The generalized readout needs a single row per point (HAG_CANARY_POINTS last or tail_mean)")
     return (points, decision, tail if points in TAIL_MODES or decision == "tail_mean" else None,
             (decision_tail or tail) if decision == "tail_mean" else None)
 
@@ -138,6 +136,8 @@ READOUTS = TAIL_READOUTS if TAIL_HPO and READOUT_ORDER == 1 else list(dict.fromk
     for decision in os.environ.get("HAG_CANARY_DECISION", "").split(",")
     for tail in os.environ.get("HAG_CANARY_TAIL", "10").split(",")
     for decision_tail in os.environ.get("HAG_CANARY_DECISION_TAIL", "").split(",")))
+if READOUT_ORDER > 1 and any(points == "tail" for points, *_ in READOUTS):
+    raise ValueError("The generalized readout needs a single row per point (HAG_CANARY_POINTS last or tail_mean)")
 # audio after the time of a frame in its features: half a window
 DELAY = canary_mfcc_config(SONGS_SAMPLING_RATE)["win_length"] / 2 / SONGS_SAMPLING_RATE
 

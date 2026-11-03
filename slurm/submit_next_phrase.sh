@@ -3,11 +3,12 @@
 # (reservoirs of the next-phrase studies, outputs/canary/studies), then the merge of their results and the paired
 # comparisons. Run from the root of a checkout of canopy:
 #   HAG_CANARY_TASK=next_phrase [HAG_CANARY_LEAK=1] bash slurm/submit_next_phrase.sh [sizes] [nb_seeds]   (default 500,1000 and 10 seeds)
+# (HAG_CANARY_READOUT_ORDER=2: the generalized readout; CONSTRAINT: the nodes, default zonda, suroit and bora)
 set -euo pipefail
 SIZES=${1:-500,1000}
 NB_SEEDS=${2:-10}
 MAX_RUNNING=${MAX_RUNNING:-12}
-NODES=(--constraint="zen4|zen3|zonda" --exclude="sirocco[21-25],enbata[01-02]")
+NODES=(--constraint="${CONSTRAINT:-zonda|suroit|bora}")  # CPU nodes, no GPU nor big memory
 cd "$(dirname "$0")/.."
 mkdir -p slurm/logs slurm/tasks
 
