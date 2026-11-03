@@ -27,8 +27,8 @@ TIME=${TIME:-3-00:00:00}
 BEGIN=${BEGIN:-20:00}
 cd "$(dirname "$0")/.."
 mkdir -p slurm/logs slurm/tasks outputs/canary/studies
-if [ -z "$(find canopy/datasets/Canary/audio -name "*.wav" -print -quit)" ] || [ ! -f canopy/datasets/Canary/boundary_features_44100_no_floor.pkl ]; then
-    echo "canopy/datasets/Canary: audio or MFCC cache missing (the compute nodes have no internet)" >&2
+if [ -z "$(find canopy/datasets/marron1/audio -name "*.wav" -print -quit)" ] || [ ! -f canopy/datasets/marron1/boundary_features_44100_no_floor.pkl ]; then
+    echo "canopy/datasets/marron1: audio or MFCC cache missing (the compute nodes have no internet)" >&2
     exit 1
 fi
 

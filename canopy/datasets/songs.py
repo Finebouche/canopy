@@ -22,7 +22,7 @@ from sklearn.model_selection import GroupShuffleSplit
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 DATASETS_DIR = Path(__file__).resolve().parent
-CANARY_DIR = DATASETS_DIR / "Canary"  # (tracked: the annotations only)
+CANARY_DIR = DATASETS_DIR / "marron1"  # (tracked: the annotations only)
 # The annotations of the Zenodo record, corrected. The annotations of 5 songs (172, 290, 365, 418, 430) are late on
 # their audio in the record (all their phrases sound like the label of a later one; their audio was probably cut at the
 # start after the annotation): shifted by -0.810, -0.990, -1.715, -1.980 and -1.380 s, estimated by the alignment of
@@ -143,13 +143,14 @@ def annotations_of_songs():
     return pd.concat([pd.read_csv(f, index_col=0) for f in sorted(annotations_dir.rglob("*.csv"))])
 
 
-def song_phrases(annotations, wave, ignored_labels=IGNORED_LABELS):
-    """[(start, end, label)] of the phrases of a song: segments of ignored_labels removed, repeated labels merged."""
+def song_phrases(annotations, wave, ignored_labels=IGNORED_LABELS, merge_repeats=True):
+    """[(start, end, label)] of the phrases of a song: segments of ignored_labels removed, repeated labels merged
+    (merge_repeats False: the segments themselves, e.g. the syllables of other species)."""
     song = annotations[annotations["wave"] == wave].sort_values("start")
     song = song[~song["syll"].isin(ignored_labels)]
     phrases = []
     for start, end, label in song[["start", "end", "syll"]].itertuples(index=False, name=None):
-        if phrases and phrases[-1][2] == label:
+        if merge_repeats and phrases and phrases[-1][2] == label:
             phrases[-1] = (phrases[-1][0], end, label)
         else:
             phrases.append((start, end, label))

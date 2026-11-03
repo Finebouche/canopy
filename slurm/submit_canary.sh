@@ -22,7 +22,7 @@ NODES=(--constraint="zen4|zen3|zonda" --exclude="sirocco[21-25],enbata[01-02]")
 cd "$(dirname "$0")/.."
 mkdir -p slurm/logs slurm/tasks outputs/canary/studies
 
-# the MFCC caches, once, before the jobs (canopy/datasets/Canary/boundary_features_44100.pkl, and ..._no_floor.pkl of the
+# the MFCC caches, once, before the jobs (canopy/datasets/marron1/boundary_features_44100.pkl, and ..._no_floor.pkl of the
 # next-phrase prediction)
 set +u
 module load micromamba

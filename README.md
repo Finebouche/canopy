@@ -34,7 +34,7 @@ optimized with Optuna on the train songs, and evaluated on the test songs with p
 | Folder | Content |
 |:--|:--|
 | `canopy/datasets` | The canary songs (`songs.py`): annotations, phrases, train/test split by song, MFCC |
-| `canopy/datasets/Canary` | The dataset: its annotations (`annotations/`, tracked), those of the Zenodo record corrected (5 shifted songs, 21 relabeled phrases, see `songs.py`); its audio and MFCC caches (not tracked) |
+| `canopy/datasets/marron1` | The dataset: its annotations (`annotations/`, tracked), those of the Zenodo record corrected (5 shifted songs, 21 relabeled phrases, see `songs.py`); its audio and MFCC caches (not tracked) |
 | `canopy` | Shared parts: MFCC and HAG pretraining phrases (`common.py`), HPO (`hpo_utils.py`), conditions and paired comparisons (`evaluate_utils.py`), certainty along the phrases |
 | `canopy/models` | Reservoirs of the tasks (`reservoirs.py`, in JAX), readouts: generalized (`generalized_readout.py`), trained online (`readout_rules/`: LMS and exploratory Hebbian in JAX, `eh_numpy.py` the NumPy reference of the latter) |
 | `canopy/next_phrase_prediction` | Next-phrase prediction (`prediction.py`), phrase boundaries (`boundaries.py`, `evaluate.py`), their HPO and certainty |
@@ -63,7 +63,7 @@ pip install --no-deps -e ../hag -e .
 The environment of hag (`hag_env`) works too, with `PYTHONPATH=$PWD`.
 
 The audio (~855 MB) is downloaded from Zenodo at the first loading of the songs, and the MFCC are computed once and
-cached (`canopy/datasets/Canary/boundary_features_*.pkl`).
+cached (`canopy/datasets/marron1/boundary_features_*.pkl`).
 
 ---
 ## ▶️ Usage

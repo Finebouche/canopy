@@ -20,20 +20,21 @@ FEATURES_CACHE = CANARY_DIR / f"boundary_features_{SONGS_SAMPLING_RATE}.pkl"
 NO_FLOOR_FEATURES_CACHE = FEATURES_CACHE.with_name(f"boundary_features_{SONGS_SAMPLING_RATE}_no_floor.pkl")
 
 
-def phrase_colors():
-    """Color of each phrase label of the songs (calls included) and of END (black), the same in all the figures: a
-    distinct color for each label, those of tab20, Dark2 and three dark ones of tab20b, without their greys (kept for
-    the silences and the unknown labels)."""
+def label_colors(labels):
+    """Color of each label, the same in all the figures: a distinct color for each one (in their order), those of
+    tab20, Dark2 and three dark ones of tab20b, without their greys (kept for the silences and the unknown labels)."""
     import matplotlib.pyplot as plt
     from matplotlib.colors import to_hex
-    pairs = build_phrase_sequences(annotations_of_songs())
-    labels = sorted(set(pairs["current"]) | set(pairs["next"]))
     greys = {"#7f7f7f", "#c7c7c7", "#666666"}
     palette = [c for c in map(to_hex, list(plt.cm.tab20.colors) + list(plt.cm.Dark2.colors)) if c not in greys]
     palette += [to_hex(plt.cm.tab20b.colors[k]) for k in (0, 4, 12)]  # (dark blue, olive, dark red)
-    colors = {label: palette[k % len(palette)] for k, label in enumerate(labels)}
-    colors["END"] = "#000000"
-    return colors
+    return {label: palette[k % len(palette)] for k, label in enumerate(labels)}
+
+
+def phrase_colors():
+    """Color of each phrase label of the canary songs (calls included) and of END (black) (label_colors)."""
+    pairs = build_phrase_sequences(annotations_of_songs())
+    return {**label_colors(sorted(set(pairs["current"]) | set(pairs["next"]))), "END": "#000000"}
 
 
 def pretrain_phrases(songs, train_songs, frame):

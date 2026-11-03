@@ -14,8 +14,8 @@ dist/
 CLAUDE.md
 
 # Dataset: audio of the Zenodo record and MFCC caches (the annotations, corrected, are tracked)
-/canopy/datasets/Canary/*
-!/canopy/datasets/Canary/annotations/
+/canopy/datasets/marron1/*
+!/canopy/datasets/marron1/annotations/
 
 # outputs/canary: Optuna databases and parts of the jobs (only the result CSVs are tracked)
 /outputs/canary/studies/
@@ -26,3 +26,10 @@ CLAUDE.md
 # Slurm logs and task lists of the jobs
 /slurm/logs/
 /slurm/tasks/
+
+# Other datasets of vocalizations (canopy.datasets.vocalizations): recordings, annotations and MFCC caches
+/canopy/datasets/bengalese_gy6or6/
+/canopy/datasets/kerguelen2014/
+/canopy/datasets/llb3/
+/canopy/datasets/mouse_usv/
+/canopy/datasets/incoming/
