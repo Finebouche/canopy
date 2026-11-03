@@ -247,15 +247,16 @@ def point_states(reservoirs, songs, waves, fit=(), classes=None):
     return result[0][decision_of(READOUTS[0])], result[1][training_of(READOUTS[0])]
 
 
-def fitted_readouts(data, ridges):
+def fitted_readouts(data, ridges, order=None):
     """Yields (ridge, the readout trained on the data (rows, labels) with this coefficient) for each coefficient of
-    ridges: reservoirpy's Ridge (solver RIDGE_SOLVER), or the generalized readout (a single fit, solved again for each
-    coefficient)."""
-    if READOUT_ORDER == 1:
+    ridges: reservoirpy's Ridge (solver RIDGE_SOLVER), or the generalized readout of order (default READOUT_ORDER) > 1
+    (a single fit, solved again for each coefficient)."""
+    order = order or READOUT_ORDER
+    if order == 1:
         for ridge in ridges:
             yield ridge, Ridge(ridge=ridge, solver=RIDGE_SOLVER).fit(*data)
         return
-    readout = GeneralizedRidge(order=READOUT_ORDER).fit(*data)
+    readout = GeneralizedRidge(order=order).fit(*data)
     for ridge in ridges:
         yield ridge, readout.set_ridge(ridge)
 
