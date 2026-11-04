@@ -28,6 +28,10 @@ canopy.next_phrase_prediction.prediction.readout_of_params.
 With HAG_CANARY_TAIL_HPO=2 ("next_phrase_..._tail2_*" studies), the tails of the training rows and of the decision are
 two parameters: "readout:tail" (1: the last state only, "last"), "readout:train_mean" (for a tail of at least 2 frames)
 and "readout:decision_tail" (1 to MAX_TAIL frames, 1: decision on the last state, else on the mean of the tail).
+With HAG_CANARY_HPO_READOUT=<points>:<decision>[:<tail>] ("next_phrase_..._readout-<points>-<decision>[-<tail>]_*"
+studies), the reservoirs are optimized for this readout instead of "last" -> "last" (e.g. "tail_mean:tail_mean:10",
+"mean:mean", "all:last"; canopy.next_phrase_prediction.prediction.readout_of): one study per readout, so that the
+readouts are compared on reservoirs optimized for each of them.
 With HAG_CANARY_HPO_RULE=<rule> ("next_phrase_..._<rule>_*" studies), the readout is trained by an online rule of
 canopy.next_phrase_prediction.readout_rules (e.g. "lms", "eh_np_local") instead of the ridge regression; the readout is
 "last" -> "last" (the last state of the window of each point), or searched with HAG_CANARY_TAIL_HPO=1
@@ -80,9 +84,14 @@ HPO_RULE_MAX_EPOCHS = 1000  # (training of the online rules: the number of epoch
 HPO_RULE_NOISES = {"eh": (0.05, 2.0), "eh_np": (0.05, 2.0), "eh_np_local": (0.05, 2.0)}
 # range of the coefficient alpha of RLS (initial P = I / alpha: the ridge coefficient of the centered inputs)
 HPO_RULE_ALPHAS = {"rls": (1e-10, 1e-3)}
+# next-phrase prediction: a fixed readout of the studies, "<points>:<decision>[:<tail>]" (e.g. "tail_mean:tail_mean:10",
+# "mean:mean", "last:tail_mean:5"; canopy.next_phrase_prediction.prediction.readout_of), instead of "last" -> "last"
+HPO_READOUT = (os.environ.get("HAG_CANARY_HPO_READOUT") or None
+               if TASK == "next_phrase" and not TAIL_HPO and not HPO_RULE else None)
 # prefix of the studies and of the results of the next-phrase prediction
 STUDY_PREFIX = (f"{TASK}_" + "calls_" * CALLS + "reset_" * RESET + "leak_" * LEAK + "tail_" * (TAIL_HPO and not TAIL_SEPARATE)
                 + "tail2_" * TAIL_SEPARATE + (f"{HPO_RULE}_" if HPO_RULE else "")
+                + (f"readout-{HPO_READOUT.replace(':', '-')}_" if HPO_READOUT else "")
                 if TASK != "boundaries" else "")
 
 

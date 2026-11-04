@@ -25,12 +25,14 @@ cross-validation (the coefficients of the studies are those of the linear readou
 Training rows of the readout (HAG_CANARY_POINTS), from the states of the window of each point: those of the frames of
 the phrase ending there, up to the point (from the first frame of the song for the point before the first phrase; the
 state at the point alone when there is no such frame): "last" (default) its last state only, "tail" those of its
-last HAG_CANARY_TAIL frames (default 10, 116 ms), "tail_mean" their mean; all the rows of a point have its next label.
+last HAG_CANARY_TAIL frames (default 10, 116 ms), "tail_mean" their mean, "all" all its states, "mean" their mean; all
+the rows of a point have its next label.
 Decision (HAG_CANARY_DECISION, the scores of the validation and test points): the outputs on the last state of the
-window ("last") or on the mean of the states of its last HAG_CANARY_TAIL frames ("tail_mean", the mean of the outputs
-on these states with the linear readout); by default, on the training row of the point, or on the mean of its rows
-("tail": "tail_mean"). (The means of all the states of the window, "mean", and all its states as rows, "all", were
-removed: always worse, outputs/canary/next_phrase_calls{,_leak}_hpo_readouts.csv.)
+window ("last"), on the mean of the states of its last HAG_CANARY_TAIL frames ("tail_mean", the mean of the outputs
+on these states with the linear readout) or on the mean of all its states ("mean"); by default, on the training row of
+the point, or on the mean of its rows ("tail": "tail_mean", "all": "mean").
+With the studies of a fixed readout (HAG_CANARY_HPO_READOUT, canopy.next_phrase_prediction.hpo: reservoirs optimized
+for it), this readout alone, with the ridge coefficient of the study.
 Comma-separated lists of these three variables: all their combinations (readouts (points, decision, tail), the tail
 None when neither uses it), on the same reservoirs, their coefficients chosen by the same cross-validation (that of
 the study for "last" -> "last"), and their paired comparisons with "last" -> "last".
@@ -78,7 +80,8 @@ from reservoirpy.nodes import Ridge
 from canopy.hpo_utils import CV_SEED, FOLD_SEED
 from canopy.models.reservoirs import CHUNK, build, state_chunks, states
 from canopy.next_phrase_prediction.evaluate import REFERENCE, conditions
-from canopy.next_phrase_prediction.hpo import CALLS, MAX_TAIL, N_FOLDS, RESET, STUDY_PREFIX, TAIL_HPO, TAIL_SEPARATE, TASK
+from canopy.next_phrase_prediction.hpo import (CALLS, HPO_READOUT, MAX_TAIL, N_FOLDS, RESET, STUDY_PREFIX, TAIL_HPO,
+                                              TAIL_SEPARATE, TASK)
 from canopy.datasets.songs import SONGS_SAMPLING_RATE, annotations_of_songs, canary_mfcc_config, song_phrases
 
 SIZES = [500, 1000]
@@ -88,6 +91,7 @@ MAX_ORDER = 10
 READOUT_ORDER = int(os.environ.get("HAG_CANARY_READOUT_ORDER", "1"))  # 1: linear ridge readout, n: generalized readout
 RIDGE_SOLVER = os.environ.get("HAG_CANARY_RIDGE_SOLVER", "svd")  # (of reservoirpy.nodes.Ridge, linear readout)
 TAIL_MODES = ("tail", "tail_mean")  # (those of the last HAG_CANARY_TAIL frames of the windows)
+WHOLE_MODES = ("mean", "all")  # (those of all the frames of the windows)
 BASE_READOUT = ("last", "last", None, None)  # (training rows, decision, tail, decision tail): the last state only
 
 
@@ -95,10 +99,10 @@ def readout_of(points, decision, tail, decision_tail=None):
     """The readout (points, decision, tail, decision tail), the decision by default that of the training rows, the tail
     None when neither uses it, the tail of the decision by default that of the training rows (None for the decision on
     the last state)."""
-    decision = decision or {"tail": "tail_mean"}.get(points, points)
-    if points not in ("last",) + TAIL_MODES or decision not in ("last", "tail_mean"):
-        raise ValueError(f"Unknown readout {points} -> {decision}: HAG_CANARY_POINTS last, tail or tail_mean, "
-                         f"HAG_CANARY_DECISION last or tail_mean")
+    decision = decision or {"tail": "tail_mean", "all": "mean"}.get(points, points)
+    if points not in ("last",) + WHOLE_MODES + TAIL_MODES or decision not in ("last", "mean", "tail_mean"):
+        raise ValueError(f"Unknown readout {points} -> {decision}: HAG_CANARY_POINTS last, mean, all, tail or "
+                         f"tail_mean, HAG_CANARY_DECISION last, mean or tail_mean")
     return (points, decision, tail if points in TAIL_MODES or decision == "tail_mean" else None,
             (decision_tail or tail) if decision == "tail_mean" else None)
 
@@ -136,8 +140,11 @@ READOUTS = TAIL_READOUTS if TAIL_HPO and READOUT_ORDER == 1 else list(dict.fromk
     for decision in os.environ.get("HAG_CANARY_DECISION", "").split(",")
     for tail in os.environ.get("HAG_CANARY_TAIL", "10").split(",")
     for decision_tail in os.environ.get("HAG_CANARY_DECISION_TAIL", "").split(",")))
-if READOUT_ORDER > 1 and any(points == "tail" for points, *_ in READOUTS):
-    raise ValueError("The generalized readout needs a single row per point (HAG_CANARY_POINTS last or tail_mean)")
+if HPO_READOUT:  # (the readout of the studies, canopy.next_phrase_prediction.hpo)
+    points, decision, *tail = HPO_READOUT.split(":")
+    READOUTS = [readout_of(points, decision, int(tail[0]) if tail else None)]
+if READOUT_ORDER > 1 and any(points in ("tail", "all") for points, *_ in READOUTS):
+    raise ValueError("The generalized readout needs a single row per point (HAG_CANARY_POINTS last, mean or tail_mean)")
 # audio after the time of a frame in its features: half a window
 DELAY = canary_mfcc_config(SONGS_SAMPLING_RATE)["win_length"] / 2 / SONGS_SAMPLING_RATE
 
@@ -218,7 +225,8 @@ def point_data(reservoirs, songs, waves, readouts, fit=(), classes=None):
     accumulated = {training: ([], []) for training in {training_of(readout) for readout in readouts}} if fit else {}
     for w, windows in point_windows(reservoirs, songs, waves):
         def selection(mode, tail):  # (the states of each window used)
-            return [x[-1:] for x in windows] if mode == "last" else [x[-tail:] for x in windows]
+            return ([x[-1:] for x in windows] if mode == "last" else windows if mode in WHOLE_MODES
+                    else [x[-tail:] for x in windows])
         for (decision, tail), result in states.items():
             result[w] = np.array([x.mean(axis=0) for x in selection(decision, tail)])
         if w not in fit:
@@ -226,7 +234,7 @@ def point_data(reservoirs, songs, waves, readouts, fit=(), classes=None):
         next_labels = (songs[w]["next"][:, None] == classes[None, :]).astype(np.float64)
         for (points, tail), (inputs, labels) in accumulated.items():
             rows = selection(points, tail)
-            if points == "tail":
+            if points in ("tail", "all"):
                 inputs.append(np.vstack(rows))
                 labels.append(np.repeat(next_labels, [len(x) for x in rows], axis=0))
             else:
@@ -378,7 +386,7 @@ def readout_name(readout):
 
 
 NAME = (f"{STUDY_PREFIX}hpo" + (f"_order{READOUT_ORDER}" if READOUT_ORDER > 1 else "")
-        + (readout_name(READOUTS[0]) if len(READOUTS) == 1 else "_readouts"))
+        + ("" if HPO_READOUT else readout_name(READOUTS[0]) if len(READOUTS) == 1 else "_readouts"))
 PARTS = OUTPUTS / f"{NAME}_parts"
 
 
@@ -399,11 +407,12 @@ def run(todo, nb_seeds):
           f"{sum(len(songs[w]['next']) for w in test_songs)} test points", flush=True)
     rows = []
     for condition, model, params, ridge, size in todo:
-        # (the coefficient of the study for "last" -> "last": that of the linear readout)
-        study = ridge is not None and READOUT_ORDER == 1 and BASE_READOUT in READOUTS and not TAIL_HPO
-        chosen = {} if study and READOUTS == [BASE_READOUT] else \
+        # (the coefficient of the study for its readout, "last" -> "last" or HPO_READOUT: that of the linear readout)
+        study_readout = READOUTS[0] if HPO_READOUT else BASE_READOUT
+        study = ridge is not None and READOUT_ORDER == 1 and study_readout in READOUTS and not TAIL_HPO
+        chosen = {} if study and READOUTS == [study_readout] else \
             choose_ridges(model, params, size, songs, train_songs, frame, classes, READOUTS)
-        chosen.update({BASE_READOUT: (ridge, np.nan)} if study else {})
+        chosen.update({study_readout: (ridge, np.nan)} if study else {})
         readouts, columns_of = READOUTS, {}
         if TAIL_HPO:  # "last" -> "last", the readout of the study and the best tail of each kind of readout
             hpo = readout_of_params(params) or max(READOUTS, key=lambda readout: chosen[readout][1])

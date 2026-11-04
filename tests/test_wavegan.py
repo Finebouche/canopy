@@ -49,3 +49,15 @@ def test_training_step_runs():
     loss.backward()
     assert all(p.grad is not None for p in critic.parameters())
     assert LATENT_DIM == 3
+
+
+def test_auditory_activation_and_hebbian_learning():
+    from canopy.syllable_generation.sensorimotor import HALF_SECOND, auditory_activation, learn
+    classes = ["B", "A", "X"]
+    raw = np.zeros((1, HALF_SECOND + 10, 3))
+    raw[0, 5] = [0.5, 0.005, 0.2]  # (the frame of the largest output: A below the floor)
+    raw[0, HALF_SECOND + 5] = [3.0, 3.0, 3.0]  # (after the first half second: ignored)
+    np.testing.assert_allclose(auditory_activation(raw, classes, labels=["A", "B"]), [[0.0, 0.5]])
+    z, A = np.array([[1.0, -1.0]]), np.array([[0.5, 1.0]])
+    W = learn(z, A, eta=0.1, trials=3)
+    np.testing.assert_allclose(W[-1] - W[0], 3 * 0.1 * np.outer(z[0], A[0]))
