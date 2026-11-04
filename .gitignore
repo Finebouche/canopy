@@ -22,6 +22,9 @@ CLAUDE.md
 /outputs/canary/*_parts/
 /outputs/canary/*/studies/
 /outputs/canary/*/*_parts/
+# GAN of the syllables: checkpoints (only the losses are tracked)
+/outputs/canary/syllable_gan/*/checkpoints/
+/outputs/canary/syllable_gan/*/last.pt
 
 # Slurm logs and task lists of the jobs
 /slurm/logs/
