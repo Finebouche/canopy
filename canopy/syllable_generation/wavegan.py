@@ -11,7 +11,10 @@ Donahue et al.) and the PyTorch version of N. Trouvain (canarygan), with the set
   - WGAN-GP loss (Gulrajani et al. 2017, gradient penalty LAMBDA), CRITIC_STEPS updates of the critic per update of the
     generator, each on its own batch of real syllables (as WaveGAN; canarygan reuses the same batch), Adam (LR, BETAS),
     batches of BATCH_SIZE; weights initialized as TensorFlow's layers (Glorot uniform, zero bias).
-canarygan differs: no phase shuffle by default (rad 0, WaveGAN's is 2) and He initialization.
+canarygan differs: no phase shuffle by default (rad 0, WaveGAN's is 2), He initialization and the same batch of real
+syllables for the CRITIC_STEPS updates of the critic. Variants (environment variables, saved in <run>/settings.json):
+HAG_CANARY_GAN_PHASE_SHUFFLE (radius, default 2), HAG_CANARY_GAN_INIT ("glorot", default, or "kaiming": canarygan's),
+HAG_CANARY_GAN_SAME_BATCH=1 (canarygan's), HAG_CANARY_GAN_LR (default 1e-4).
 
 An epoch is len(dataset) / BATCH_SIZE updates of the generator (canarygan's, 250 for the 16 000 syllables): the
 critic sees each syllable CRITIC_STEPS times per epoch. Checkpoints (generator, critic, optimizers, generator of the
@@ -23,6 +26,8 @@ Usage (from the root of canopy):
   python -m canopy.syllable_generation.wavegan generate <checkpoint> <n> <file.npz> [seed]   x (n, SLICE_LENGTH), z
 """
 import csv
+import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -37,10 +42,12 @@ from canopy.syllable_generation.syllables import SLICE_LENGTH, syllable_dataset
 LATENT_DIM = 3
 DIM = 64
 KERNEL, STRIDE = 25, 4
-PHASE_SHUFFLE = 2
+PHASE_SHUFFLE = int(os.environ.get("HAG_CANARY_GAN_PHASE_SHUFFLE", 2))
 LAMBDA = 10.0
 CRITIC_STEPS = 5
-LR, BETAS = 1e-4, (0.5, 0.9)
+LR, BETAS = float(os.environ.get("HAG_CANARY_GAN_LR", 1e-4)), (0.5, 0.9)
+INIT = os.environ.get("HAG_CANARY_GAN_INIT", "glorot")  # ("kaiming": He normal weights, PyTorch's bias, canarygan)
+SAME_BATCH = os.environ.get("HAG_CANARY_GAN_SAME_BATCH") == "1"  # (one batch for the CRITIC_STEPS updates, canarygan)
 BATCH_SIZE = 64
 EPOCHS = 1000
 SAVE_EVERY = 15  # epochs (canarygan's)
@@ -49,7 +56,11 @@ PADDING = (KERNEL - STRIDE + 1) // 2  # ("same" padding of TensorFlow, stride 4:
 
 
 def initialized(layer):
-    """layer with TensorFlow's initialization (Glorot uniform weights, zero bias)."""
+    """layer with TensorFlow's initialization (Glorot uniform weights, zero bias), or canarygan's (INIT "kaiming": He
+    normal weights)."""
+    if INIT == "kaiming":
+        nn.init.kaiming_normal_(layer.weight)
+        return layer
     nn.init.xavier_uniform_(layer.weight)
     nn.init.zeros_(layer.bias)
     return layer
@@ -136,6 +147,9 @@ def batches(x, rng):
 def train(run, epochs=EPOCHS, seed=0):
     """Train the GAN on the syllables of the train songs, results in the directory run (resumed from run/last.pt)."""
     run = Path(run)
+    run.mkdir(parents=True, exist_ok=True)
+    (run / "settings.json").write_text(json.dumps(dict(phase_shuffle=PHASE_SHUFFLE, init=INIT, same_batch=SAME_BATCH,
+                                                       lr=LR, critic_steps=CRITIC_STEPS, batch_size=BATCH_SIZE)))
     (run / "checkpoints").mkdir(parents=True, exist_ok=True)
     on = device()
     torch.manual_seed(seed)
@@ -160,8 +174,9 @@ def train(run, epochs=EPOCHS, seed=0):
     start = time.time()
     while epoch < epochs:
         for step in range(steps_per_epoch):
-            for _ in range(CRITIC_STEPS):
-                real = next(real_batches)
+            real = next(real_batches)
+            for k in range(CRITIC_STEPS):
+                real = real if SAME_BATCH or k == 0 else next(real_batches)
                 with torch.no_grad():
                     fake = generator(latent(len(real), on))
                 wasserstein = critic(real).mean() - critic(fake).mean()
