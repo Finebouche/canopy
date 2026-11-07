@@ -1,0 +1,1 @@
+{"phase_shuffle": 2, "init": "glorot", "same_batch": false, "lr": 2e-05, "critic_steps": 5, "batch_size": 64}

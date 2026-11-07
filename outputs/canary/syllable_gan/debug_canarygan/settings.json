@@ -1,0 +1,1 @@
+{"phase_shuffle": 0, "init": "kaiming", "same_batch": true, "lr": 0.0001, "critic_steps": 5, "batch_size": 64}
