@@ -30,7 +30,8 @@ CANARY_DIR = DATASETS_DIR / "marron1"  # (tracked: the annotations only)
 # the bias of this alignment on 100 other songs (+0.030 s, standard deviation 0.012 s); a kNN of the MFCC of the
 # phrases of the other songs agrees with 98-100 % of their labels after the shift (0-5 % before). Times clipped at 0,
 # segments ending before 0 removed. And 21 phrases relabeled as the label they sound like (outliers in the UMAP and the
-# t-SNE of the mean MFCC of the phrases, checked by ear: notebook "1. Exploration").
+# t-SNE of the mean MFCC of the phrases, checked by ear: notebook "1. Exploration"), then 41 more segments relabeled
+# by hand (2026-11, mostly A -> X, J2 -> B2 and J1 -> B1; same times).
 ANNOTATIONS_DIR = CANARY_DIR / "annotations"
 
 ZENODO_URL = "https://zenodo.org/api/records/6521932/files/{}/content"
