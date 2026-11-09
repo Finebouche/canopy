@@ -36,7 +36,7 @@ def conditions(size, study_name_of):
         if trial is None:
             print(f"  (no study {study_name}: {condition} skipped)")
         else:
-            result.append((condition, model, trial.params, trial.user_attrs["ridge"], trial.user_attrs.get("threshold")))
+            result.append((condition, model, trial.params, trial.user_attrs.get("ridge"), trial.user_attrs.get("threshold")))
 
     for model in PURE_MODELS:
         from_study(model, model, study_name_of(model, size))

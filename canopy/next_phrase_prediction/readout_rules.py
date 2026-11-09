@@ -41,6 +41,11 @@ songs (out-of-fold accuracy; never on the test songs); then each rule is trained
 the test songs for each seed (paired comparisons with "ridge"). Rules: HAG_CANARY_READOUT_RULES (comma-separated,
 default all the rules on the states), their configurations trained in HAG_CANARY_RULES_JOBS processes (default 1),
 for at most HAG_CANARY_RULES_MAX_EPOCHS epochs (default the last of EPOCHS).
+These comparisons read reservoirs optimized for the ridge readout: they favor it (CLAUDE.md, fair comparisons). For a
+fair comparison, each rule with its own studies: HAG_CANARY_HPO_RULE=<rule> (canopy.next_phrase_prediction.hpo,
+reservoirs optimized for the rule, slurm/submit_hpo_rules.sh), then its evaluation here with the same variable: the
+reservoirs of its studies, that rule alone, its rate, noise and alpha of the study (the hybrids, without study: those
+of the grid), its number of epochs (and normalization of RLS, coefficient of ridge:<n>) chosen by the cross-validation.
 
 Results: outputs/canary/<prefix>readout_rules<suffix>.csv (one row per condition, size, seed and rule),
 <prefix>readout_rules<suffix>_comparisons.csv (each rule - ridge, paired by seed) and <prefix>readout_rules<suffix>_cv.csv
@@ -69,11 +74,13 @@ from canopy.models.readout_rules.eh import EH
 from canopy.models.readout_rules.kernel import KernelEH, KernelLMS
 from canopy.models.readout_rules.lms import LMS
 from canopy.models.reservoirs import build
-from canopy.next_phrase_prediction.hpo import N_FOLDS, STUDY_PREFIX, TAIL_HPO, TAIL_SEPARATE
+from canopy.next_phrase_prediction.hpo import HPO_RULE, N_FOLDS, STUDY_PREFIX, TAIL_HPO, TAIL_SEPARATE
 from canopy.next_phrase_prediction.prediction import (BASE_READOUT, NAME, all_conditions, decision_of, fitted_readouts,
                                                       metrics, point_windows, prepare, readout_of, training_of)
 
 RULES = os.environ.get("HAG_CANARY_READOUT_RULES", "ridge,rls,lms,eh,eh_np,eh_np_local").split(",")
+if HPO_RULE:  # (the studies of the rule, canopy.next_phrase_prediction.hpo: that rule alone)
+    RULES = [HPO_RULE]
 NORMALIZATIONS = ["center", "standardize"]  # (inputs of RLS; LMS and EH: "standardize", better in all the conditions)
 RLS_ALPHAS = 10.0 ** np.arange(-10, -2)  # (ridge coefficient of the standardized inputs)
 LMS_RATES = [0.003, 0.01, 0.03, 0.1, 0.3]  # (normalized: c / mean ||x||^2)
@@ -296,8 +303,10 @@ def run(todo, nb_seeds):
             readout = BASE_READOUT
             points, decision, tail = readout[:3]
         print(f"{condition} ({size}): readout {readout}", flush=True)
+        # (the studies of a rule, HPO_RULE: its rate, noise and alpha of the study, the hybrids those of the grid)
         chosen, curve = choose(model, params, size, songs, train_songs, frame, classes, readout, RULES,
-                               max_epochs=MAX_EPOCHS)
+                               params.get("readout:rate"), MAX_EPOCHS, params.get("readout:noise"),
+                               params.get("readout:alpha"))
         curves.append(curve.assign(condition=condition, network_size=size))
         for rule, (hyper, cv_accuracy) in chosen.items():
             print(f"  {rule}: {hyper}, cross-validation accuracy {100 * cv_accuracy:.2f} %", flush=True)

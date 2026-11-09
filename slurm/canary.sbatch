@@ -26,11 +26,18 @@
 #SBATCH --output=slurm/logs/%x-%A_%a.out
 set -euo pipefail
 if [ -n "${HAG_CANARY_TASKS:-}" ] && [ -n "${SLURM_ARRAY_TASK_ID:-}" ]; then
-    # (optional third and fourth fields: the readout of the study and the leak, slurm/submit_hpo_readouts.sh)
-    read -r MODEL SIZE READOUT LEAK < <(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" "$HAG_CANARY_TASKS")
-    if [ -n "$READOUT" ]; then export HAG_CANARY_HPO_READOUT=$READOUT HAG_CANARY_LEAK=$LEAK; fi
-    # (training rows "all": all the states of the phrases, ~1 million rows, ~9 GB at 1000 neurons, more memory per worker)
-    case "$READOUT" in all:*) export HAG_CANARY_WORKER_MEM=${HAG_CANARY_WORKER_MEM_ALL:-28} ;; esac
+    read -r MODEL SIZE EXTRA < <(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" "$HAG_CANARY_TASKS")
+    if [[ "$EXTRA" == *=* ]]; then
+        # (optional fields KEY=VALUE: variables of the study, e.g. slurm/submit_hpo_rules.sh)
+        for assignment in $EXTRA; do export "$assignment"; done
+    elif [ -n "$EXTRA" ]; then
+        # (optional third and fourth fields: the readout of the study and the leak, slurm/submit_hpo_readouts.sh)
+        read -r READOUT LEAK <<< "$EXTRA"
+        export HAG_CANARY_HPO_READOUT=$READOUT HAG_CANARY_LEAK=$LEAK
+        # (training rows "all": all the states of the phrases, ~1 million rows, ~9 GB at 1000 neurons, more memory per
+        # worker)
+        case "$READOUT" in all:*) export HAG_CANARY_WORKER_MEM=${HAG_CANARY_WORKER_MEM_ALL:-28} ;; esac
+    fi
     set -- "$MODEL" "$SIZE" "$@"
 fi
 set +u
