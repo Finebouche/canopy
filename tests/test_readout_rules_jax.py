@@ -28,10 +28,12 @@ def test_lms_matches_reservoirpy():
 @pytest.mark.parametrize("reward", ["per_output", "global"])
 @pytest.mark.parametrize("modulation", ["binary", "continuous"])
 @pytest.mark.parametrize("decay", [None, 100.0])
-def test_eh_matches_numpy_node(baseline, reward, modulation, decay):
+@pytest.mark.parametrize("normalized", [False, True])
+def test_eh_matches_numpy_node(baseline, reward, modulation, decay, normalized):
     rng = np.random.default_rng(0)
     X, Y = data(rng)
-    options = dict(learning_rate=1e-2, noise=0.5, baseline=baseline, reward=reward, modulation=modulation, decay=decay)
+    options = dict(learning_rate=1e-2, noise=0.5, baseline=baseline, reward=reward, modulation=modulation, decay=decay,
+                   normalized=normalized)
     jax_readout, numpy_readout = EH(**options, seed=1), NumpyEH(**options, seed=1)
     for _ in range(3):
         order = rng.permutation(len(X))
@@ -40,7 +42,7 @@ def test_eh_matches_numpy_node(baseline, reward, modulation, decay):
     np.testing.assert_allclose(jax_readout.run(X), numpy_readout.run(X), rtol=1e-10, atol=1e-12)
 
 
-@pytest.mark.parametrize("rule", ["lms", "eh", "eh_np", "eh_np_local"])
+@pytest.mark.parametrize("rule", ["lms", "eh", "eh_np", "eh_np_local", "neh"])
 def test_trained_matches_numpy_nodes(rule):
     # the songs in the order of the generator at each epoch, as the loop over the songs of the NumPy nodes
     rng = np.random.default_rng(0)
@@ -53,9 +55,8 @@ def test_trained_matches_numpy_nodes(rule):
     if rule == "lms":
         node = NumpyLMS(learning_rate=hyper["rate"] / mean_norm)
     else:
-        node = NumpyEH(learning_rate=hyper["rate"] / mean_norm, noise=hyper["noise"],
-                       reward="per_output" if rule == "eh_np_local" else "global",
-                       baseline="filtered" if rule == "eh" else "sample", seed=numpy_rng)
+        rate = hyper["rate"] if rule == "neh" else hyper["rate"] / mean_norm
+        node = NumpyEH.version(rule, learning_rate=rate, noise=hyper["noise"], seed=numpy_rng)
     for _ in range(3):
         for w in numpy_rng.permutation(fit):
             node.partial_fit(*rows[w])

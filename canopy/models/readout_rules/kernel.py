@@ -49,7 +49,12 @@ class KernelReadout:
 
 
 class KernelLMS(KernelReadout):
-    """LMS on the monomials, normalized (NLMS: the learning rate of row i learning_rate / (||phi(x_i)||^2 + 1))."""
+    """LMS on the monomials, normalized (NLMS: the learning rate of row i learning_rate / (||phi(x_i)||^2 + 1)), the
+    rule "nlms:<n>": the kernel LMS of Liu, Pokharel & Principe (2008) normalized as the kernel NLMS of Richard,
+    Bermudez & Honeine (2009), without their dictionary (all the training rows are kept), on the exact kernel of the
+    unique monomials of the generalized readout of Ohkubo & Inubushi (2024) (not the polynomial kernel (1 + x.y)^n,
+    which weights the monomials differently): the same weights as NLMS on the monomials themselves. As an online
+    readout of a reservoir: ours (none found published)."""
 
     def __init__(self, X, order, learning_rate):
         super().__init__(X, order)
@@ -65,10 +70,12 @@ class KernelLMS(KernelReadout):
 
 
 class KernelEH(KernelReadout):
-    """EH on the monomials (the options of canopy.models.readout_rules.eh.EH), normalized as KernelLMS; the exploration
-    noise drawn as EH (with the same generator, the same outputs as EH on the monomials themselves)."""
+    """EH on the monomials (the options of canopy.models.readout_rules.eh.EH), always normalized as KernelLMS; the
+    exploration noise drawn as EH (with the same generator, the same outputs as EH on the monomials themselves). The
+    defaults: the version "neh" (canopy.models.readout_rules.eh_numpy.VERSIONS), the rule "neh:<n>": neh on the
+    monomials, ours (no reward-modulated or perturbation rule on nonlinear features of a reservoir found published)."""
 
-    def __init__(self, X, order, learning_rate=1e-3, decay=None, noise=0.5, baseline="filtered", alpha=0.2,
+    def __init__(self, X, order, learning_rate=1e-3, decay=None, noise=0.5, baseline="sample", alpha=0.2,
                  reward="per_output", modulation="binary", fit_bias=True, seed=None):
         super().__init__(X, order)
         self.rates = row_rates(learning_rate, jnp.diag(self.K), True)

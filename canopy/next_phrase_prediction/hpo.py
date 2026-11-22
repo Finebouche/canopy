@@ -32,9 +32,12 @@ With HAG_CANARY_HPO_READOUT=<points>:<decision>[:<tail>] ("next_phrase_..._reado
 studies), the reservoirs are optimized for this readout instead of "last" -> "last" (e.g. "tail_mean:tail_mean:10",
 "mean:mean", "all:last"; canopy.next_phrase_prediction.prediction.readout_of): one study per readout, so that the
 readouts are compared on reservoirs optimized for each of them.
-With HAG_CANARY_HPO_RULE=<rule> ("next_phrase_..._<rule>_*" studies, "<rule>-order<n>" for "<rule>:<n>"), the readout
-is trained by a rule of canopy.next_phrase_prediction.readout_rules (e.g. "lms", "eh_np_local", "rls", "nlms", "neh", or
-on the monomials of the state, "ridge:2", "nlms:2", "neh:2") instead of the linear ridge regression; the readout is
+With HAG_CANARY_HPO_RULE=<rule> ("next_phrase_..._<rule>_*" studies, "<rule>-order<n>" for "<rule>:<n>",
+"<rule>-<selection>" for "<rule>:<selection>": rule_tag), the readout is trained by a rule of
+canopy.next_phrase_prediction.readout_rules (e.g. "lms", "eh_np_local", "rls", "nlms", "neh", or on the monomials of
+the state, "ridge:2", "nlms:2", "neh:2", or on the state and selected products of degree 2, a selection of
+canopy.next_phrase_prediction.monomial_selection: "nlms:pca:64", "eh_np_local:scores", "ridge:random_pairs:2080")
+instead of the linear ridge regression; the readout is
 "last" -> "last" (the last state of the window of each point), or searched with HAG_CANARY_TAIL_HPO=1
 ("next_phrase_..._tail_<rule>_*" studies). Its learning rate (LMS and EH) is in the search ("readout:rate",
 log-uniform in HPO_RULE_RATES: one training per fold, not the grid of readout_rules), the amplitude of the
@@ -88,17 +91,29 @@ HPO_RULE_MAX_EPOCHS = int(os.environ.get("HAG_CANARY_HPO_RULE_MAX_EPOCHS", 3000)
 # range of the amplitude of the exploration noise of the EH rules (uniform in [-noise, noise] on each output, one-hot
 # targets; Hoerzer et al. 2014: 0.5)
 HPO_RULE_NOISES = {"eh": (0.05, 4.0), "eh_np": (0.05, 4.0), "eh_np_local": (0.05, 4.0), "neh": (0.05, 4.0)}
-# range of the coefficient alpha of RLS (initial P = I / alpha: the ridge coefficient of the centered inputs; 1e-10, the
-# lower bound of the first studies, was reached)
-HPO_RULE_ALPHAS = {"rls": (1e-14, 1e-3)}
-HPO_RULE_BASE = HPO_RULE.partition(":")[0] if HPO_RULE else None  # (the rule, without the order of the monomials)
+# range of the coefficient alpha of RLS (initial P = I / alpha: the ridge coefficient of the centered inputs). Below
+# 1e-8 the recursion loses its precision (float64; canopy.models.readout_rules.rls). (Until 2026-11-19: 1e-14 to 1e-3,
+# with the bias of reservoirpy's node, the lower bound reached: those studies are not comparable.)
+HPO_RULE_ALPHAS = {"rls": (1e-8, 1.0)}
+HPO_RULE_BASE = HPO_RULE.partition(":")[0] if HPO_RULE else None  # (the rule, without the order or the selection)
 # next-phrase prediction: a fixed readout of the studies, "<points>:<decision>[:<tail>]" (e.g. "tail_mean:tail_mean:10",
 # "mean:mean", "last:tail_mean:5"; canopy.next_phrase_prediction.prediction.readout_of), instead of "last" -> "last"
 HPO_READOUT = (os.environ.get("HAG_CANARY_HPO_READOUT") or None
                if TASK == "next_phrase" and not TAIL_HPO and not HPO_RULE else None)
+
+
+def rule_tag(label):
+    """Name of a rule in the studies and the results: "<rule>", "<rule>-order<n>" for the monomials "<rule>:<n>",
+    "<rule>-<selection>" for the selected products "<rule>:<selection>" ("nlms:pca:64": "nlms-pca-64")."""
+    rule, _, inputs = label.partition(":")
+    if not inputs:
+        return rule
+    return f"{rule}-order{inputs}" if inputs.isdigit() else f"{rule}-{inputs.replace(':', '-')}"
+
+
 # prefix of the studies and of the results of the next-phrase prediction
 STUDY_PREFIX = (f"{TASK}_" + "calls_" * CALLS + "reset_" * RESET + "leak_" * LEAK + "tail_" * (TAIL_HPO and not TAIL_SEPARATE)
-                + "tail2_" * TAIL_SEPARATE + (f"{HPO_RULE.replace(':', '-order')}_" if HPO_RULE else "")
+                + "tail2_" * TAIL_SEPARATE + (f"{rule_tag(HPO_RULE)}_" if HPO_RULE else "")
                 + (f"readout-{HPO_READOUT.replace(':', '-')}_" if HPO_READOUT else "")
                 if TASK != "boundaries" else "")
 

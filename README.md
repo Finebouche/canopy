@@ -40,6 +40,7 @@ optimized with Optuna on the train songs, and evaluated on the test songs with p
 | `canopy/next_phrase_prediction` | Next-phrase prediction (`prediction.py`), phrase boundaries (`boundaries.py`, `evaluate.py`), their HPO and certainty |
 | `canopy/syllables_classification` | Frame-by-frame syllable classification (`classification.py`), its HPO and certainty, canapy reference |
 | `canopy/syllable_generation` | Generation of syllables: single syllables cut from the phrases of marron1 (`syllables.py`), the low-dimensional WaveGAN of Pagliarini et al. (2021) in PyTorch (`wavegan.py`, trained on a GPU of PlaFRIM with `slurm/submit_gan.sh`), the ESN decoder of the syllable type (`decoder.py`) and the Hebbian sensorimotor model of Pagliarini, Leblois & Hinaut (2021) (`sensorimotor.py`) |
+| `canopy/song_generation` | Generation of songs phrase by phrase (`generator.py`): the predictor of the next phrase chooses the next phrase of the song its reservoir hears, a working memory holds it while a voice sings it; stage 1, recorded phrases of the train songs as the voice (`python -m canopy.song_generation.generator`, results in `outputs/canary/song_generation/`), then the GAN |
 | `outputs/canary` | Results (CSV); Optuna studies in `outputs/canary/studies` (not tracked) |
 | `slurm` | Jobs on PlaFRIM: HPO, evaluations (`submit_canary.sh`, `submit_next_phrase.sh`, `submit_syllables.sh`, `canary.sbatch`) |
 | `ETAT_DES_TRAVAUX.md` | State of the work (in French): what was tested, the conclusions, what to rerun with the final annotations |

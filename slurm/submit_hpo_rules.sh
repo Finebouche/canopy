@@ -2,7 +2,9 @@
 # Optimization of the reservoirs of the next-phrase prediction for each learning rule of the readout "last" -> "last"
 # (canopy.next_phrase_prediction.hpo with HAG_CANARY_HPO_RULE, the hyperparameters of the rule in the search: rate of
 # LMS, NLMS and EH, noise of EH, alpha of RLS; studies next_phrase_calls_[leak_]<rule>_<model>_<size>, "<rule>-order<n>"
-# for the rules on the monomials "<rule>:<n>"), so that the rules are compared on reservoirs optimized for each of them
+# for the rules on the monomials "<rule>:<n>", "<rule>-<selection>" for the rules on selected products
+# "<rule>:<selection>", e.g. RULES="nlms:pca:64 eh_np_local:scores ridge:random_pairs:2080"), so that the rules are
+# compared on reservoirs optimized for each of them
 # (the rule "ridge": the studies of the linear ridge readout, without rule, done again here with the same annotations),
 # then their final evaluation on the reservoirs of their studies (slurm/submit_readout_rules.sh for each rule and leak,
 # slurm/submit_next_phrase.sh for ridge, 10 seeds, two conditions at a time each, from the next BEGIN)

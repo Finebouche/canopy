@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Readouts : entraînement et décision</title>
+<style>
+:root{--text-primary:#0b0b0b;--text-secondary:#52514e;--text-muted:#898781;--bg:#fcfcfb;--border:#c3c2b7;--font-mono:ui-monospace,Menlo,Consolas,monospace}
+@media (prefers-color-scheme: dark){:root{--text-primary:#f0efec;--text-secondary:#c3c2b7;--text-muted:#898781;--bg:#151515;--border:#383835}}
+body{background:var(--bg);color:var(--text-primary);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;padding:24px 16px}
+main{max-width:760px;margin:0 auto}
+h1{font-size:20px;font-weight:500;margin:0 0 6px}
+p.note{font-size:13px;color:var(--text-secondary);line-height:1.5;margin:0 0 16px}
+.ct{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;margin:0 0 12px;font-size:13px;color:var(--text-secondary)}
+.ct select{height:32px;border:1px solid var(--border);border-radius:8px;background:transparent;color:var(--text-primary);padding:0 8px;font:inherit}
+.gg{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
+.hm{display:grid;grid-template-columns:92px repeat(4,minmax(0,1fr));gap:3px;font-size:12px}
+.hm div{padding:7px 2px;text-align:center;border-radius:4px;font-variant-numeric:tabular-nums}
+.hm .h{color:var(--text-secondary);font-family:var(--font-mono);font-size:11px;padding:4px 2px}
+.hm .r{text-align:left;color:var(--text-secondary);font-family:var(--font-mono);font-size:11px;padding-left:0}
+.tt{font-size:13px;font-weight:500;margin:0 0 6px}
+.lg{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--text-secondary);margin:12px 0 0}
+.lg span{display:flex;align-items:center;gap:5px}
+</style>
+</head>
+<body>
+<main>
+<h1>Readouts : mode d'entraînement et mode de décision</h1>
+<p class="note">Précision de la phrase suivante sur les chants de test. Chaque case a sa propre HPO : le réservoir est optimisé pour ce readout (400 essais), puis évalué sur 10 graines. Réservoirs purs mean_hag, var_hag, random_ee et random_ei, à 500 et 1 000 neurones. Source : <code>outputs/canary/next_phrase_calls[_leak]_readout-*_hpo.csv</code>, et pour last → last la version du commit d73ade5 de <code>next_phrase_calls[_leak]_hpo.csv</code>. Évaluations faites avant les 41 réétiquetages du 7 novembre 2026. Widget enregistré le 19 novembre 2026.</p>
+<div class="ct"><label>Réservoir <select id="res"><option value="all">Moyenne des 4</option><option value="0">mean_hag</option><option value="1">var_hag</option><option value="2">random_ee</option><option value="3">random_ei</option></select></label>
+<label>Taille <select id="size"><option value="both">500 et 1 000</option><option value="0">500</option><option value="1">1 000</option></select></label>
+<span id="best"></span></div>
+<div class="gg"><div><div class="tt">Sans fuite</div><div class="hm" id="none"></div></div><div><div class="tt">Avec fuite</div><div class="hm" id="leak"></div></div></div>
+<div class="lg"><span><span style="width:14px;height:14px;border-radius:3px;border:1.5px solid var(--text-primary);display:inline-block"></span>Décision du même mode que l'entraînement</span><span><span style="width:14px;height:14px;border-radius:3px;border:2.5px solid #D85A30;display:inline-block"></span>Meilleur readout de la grille</span><span>Lignes : entraînement. Colonnes : décision. Précision au test en %.</span></div>
+</main>
+<script>
+// order of the values of each readout: mean_hag 500, 1000, var_hag 500, 1000, random_ee 500, 1000, random_ei 500, 1000
+const D = {
+none:{'last|last':[82.5,83.5,82.0,82.3,77.2,79.6,79.4,81.8],'all|last':[66.2,67.7,66.3,66.3,51.2,59.4,57.7,65.7],'all|mean':[73.2,75.8,73.0,75.3,66.8,70.8,68.1,72.5],'all|tail_mean 10':[72.5,73.7,70.9,72.7,66.8,70.7,67.2,71.5],'all|tail_mean 5':[68.1,71.8,68.6,71.1,62.9,67.2,64.3,70.0],'last|mean':[64.3,66.3,64.9,68.0,55.3,59.1,57.6,62.6],'last|tail_mean 10':[72.0,73.8,74.3,74.9,61.9,66.9,65.0,68.0],'last|tail_mean 5':[79.5,79.8,79.7,81.0,69.8,72.3,68.9,75.2],'mean|last':[53.0,53.5,45.2,42.8,30.0,33.2,34.2,35.6],'mean|mean':[81.3,82.0,81.2,81.6,81.6,82.0,81.4,82.9],'mean|tail_mean 10':[76.4,77.8,74.5,77.0,75.7,76.5,77.8,78.2],'mean|tail_mean 5':[65.3,66.8,64.3,66.4,62.4,65.2,65.5,64.7],'tail 10|last':[78.3,79.8,78.2,81.4,66.5,71.7,72.1,76.7],'tail 5|last':[80.3,80.1,80.2,81.4,71.7,74.5,75.1,78.5],'tail 10|mean':[74.2,75.9,73.4,74.8,71.8,75.4,72.0,75.8],'tail 5|mean':[69.8,72.4,68.7,70.5,63.6,68.8,64.1,70.2],'tail 10|tail_mean 10':[79.4,79.9,78.6,80.8,76.3,78.5,77.8,79.1],'tail 5|tail_mean 5':[80.6,82.0,80.4,82.2,78.2,80.3,79.0,81.0],'tail_mean 10|last':[64.9,60.8,67.9,55.8,40.8,45.2,38.6,45.2],'tail_mean 5|last':[74.7,75.4,70.1,71.2,47.4,50.2,49.1,53.5],'tail_mean 10|mean':[75.9,76.5,76.0,76.8,76.0,77.6,75.7,78.7],'tail_mean 5|mean':[70.4,71.3,68.6,69.7,67.9,70.9,69.7,73.8],'tail_mean 10|tail_mean 10':[83.0,84.2,82.9,84.2,82.2,83.3,82.2,83.7],'tail_mean 5|tail_mean 5':[82.3,83.7,82.2,83.2,80.2,81.8,81.0,82.9]},
+leak:{'last|last':[84.7,85.3,84.8,85.6,84.6,85.8,84.8,86.0],'all|last':[72.0,73.0,71.3,73.8,71.8,73.9,72.1,74.1],'all|mean':[76.7,78.8,77.2,78.9,77.3,79.0,77.6,78.6],'all|tail_mean 10':[76.0,77.1,76.2,78.0,76.5,78.1,76.7,78.1],'all|tail_mean 5':[74.3,75.8,74.3,76.4,74.9,76.6,74.9,76.7],'last|mean':[66.0,66.4,65.6,67.1,68.8,69.5,67.8,68.9],'last|tail_mean 10':[79.6,80.7,79.7,80.2,80.2,81.3,80.2,81.3],'last|tail_mean 5':[82.3,82.7,81.8,83.3,82.7,83.8,82.7,83.7],'mean|last':[69.4,71.0,67.2,68.4,71.4,72.8,71.1,72.2],'mean|mean':[81.7,82.7,81.3,82.1,81.8,82.6,81.8,83.0],'mean|tail_mean 10':[78.0,78.4,77.5,79.0,79.9,80.1,80.3,80.9],'mean|tail_mean 5':[72.1,72.2,72.6,72.2,74.9,75.2,74.4,75.4],'tail 10|last':[81.5,82.1,81.3,82.2,81.5,83.2,82.0,83.5],'tail 5|last':[82.8,83.4,82.3,83.6,82.8,84.2,82.9,84.2],'tail 10|mean':[74.7,76.2,73.1,75.1,76.1,77.5,75.4,77.2],'tail 5|mean':[69.8,72.6,69.9,69.6,72.6,75.8,72.4,75.0],'tail 10|tail_mean 10':[80.7,81.3,80.6,82.0,80.8,82.0,80.9,82.3],'tail 5|tail_mean 5':[82.2,83.2,82.4,83.4,82.5,83.7,82.6,84.1],'tail_mean 10|last':[82.0,82.1,81.8,82.3,82.6,83.8,82.5,83.3],'tail_mean 5|last':[82.6,83.5,82.3,83.3,83.2,84.3,83.4,84.4],'tail_mean 10|mean':[75.1,76.1,74.5,76.5,76.3,79.2,76.1,79.1],'tail_mean 5|mean':[69.7,71.9,70.5,71.5,71.5,73.8,71.0,74.2],'tail_mean 10|tail_mean 10':[83.6,84.4,84.3,85.2,83.1,84.3,83.9,84.8],'tail_mean 5|tail_mean 5':[83.5,84.7,84.1,85.0,83.1,85.0,84.0,85.1]}};
+const rows = ['last', 'mean', 'all', 'tail 5', 'tail 10', 'tail_mean 5', 'tail_mean 10'], cols = ['last', 'mean', 'tail_mean 5', 'tail_mean 10'];
+const same = new Set(['last|last', 'mean|mean', 'tail 5|tail_mean 5', 'tail 10|tail_mean 10', 'tail_mean 5|tail_mean 5', 'tail_mean 10|tail_mean 10']);
+const fr = v => v.toFixed(1).replace('.', ',');
+function value(a, res, size) { const idx = []; for (let m = 0; m < 4; m++) for (let s = 0; s < 2; s++) if ((res === 'all' || +res === m) && (size === 'both' || +size === s)) idx.push(2 * m + s); return idx.reduce((t, i) => t + a[i], 0) / idx.length; }
+function draw() {
+  const res = document.getElementById('res').value, size = document.getElementById('size').value, bests = [];
+  for (const leak of ['none', 'leak']) {
+    const vals = {}; let best = null;
+    for (const k in D[leak]) { vals[k] = value(D[leak][k], res, size); if (best === null || vals[k] > vals[best]) best = k; }
+    bests.push((leak === 'none' ? 'sans fuite ' : 'avec fuite ') + best.replace('|', ' → ') + ' ' + fr(vals[best]) + ' %');
+    let h = '<div></div>' + cols.map(c => `<div class="h">${c}</div>`).join('');
+    for (const r of rows) { h += `<div class="r">${r}</div>`;
+      for (const c of cols) { const k = r + '|' + c, v = vals[k];
+        if (v === undefined) { h += '<div style="color:var(--text-muted)">–</div>'; continue; }
+        const a = Math.max(0.04, Math.min(1, Math.pow(Math.max(0, v - 50) / 37, 2.2)));
+        const border = k === best ? 'box-shadow:inset 0 0 0 2.5px #D85A30;' : same.has(k) ? 'box-shadow:inset 0 0 0 1.5px var(--text-primary);' : '';
+        h += `<div style="background:rgba(42,120,214,${a.toFixed(2)});color:${a > 0.55 ? '#fff' : 'var(--text-primary)'};${border}">${fr(v)}</div>`; } }
+    document.getElementById(leak).innerHTML = h; }
+  document.getElementById('best').textContent = 'Meilleurs : ' + bests.join(' ; ');
+}
+document.getElementById('res').onchange = draw; document.getElementById('size').onchange = draw; draw();
+</script>
+</body>
+</html>

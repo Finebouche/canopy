@@ -1,13 +1,14 @@
 """
-Exploratory Hebbian readout of Hoerzer, Legenstein & Maass (2014) (the rule of canopy.models.readout_rules.eh_numpy.EH, see its docstring
-for the rule and its options) trained in JAX: the steps of a pass over the rows in a compiled lax.scan, about 6 times
-faster than the reservoirpy node's loop over the steps. The exploration noise is drawn with the NumPy generator, in the
-order of canopy.models.readout_rules.eh_numpy.EH (one draw of output_dim values per step): with the same generator, the same weights
-(float64). normalized: the learning rate of each row divided by its squared norm + 1 (as NLMS,
-canopy.models.readout_rules.lms).
+Exploratory Hebbian readout trained in JAX: the rule of canopy.models.readout_rules.eh_numpy.EH (see its docstring for
+the rule, its four ingredients and its versions, VERSIONS: "legenstein", "eh", "eh_np", "eh_np_local", "neh"), the
+steps of a pass over the rows in a compiled lax.scan, about 6 times faster than the reservoirpy node's loop over the
+steps. The same options and defaults (the version "eh"), EH.version(name, ...) as the node; the exploration noise drawn
+with the NumPy generator in the order of the node (one draw of output_dim values per step): with the same generator, the
+same weights (float64). dual: the rule on the features of a kernel (canopy.models.readout_rules.kernel, rule
+"neh:<n>", ours).
 
 Example (rows of all the training songs, the order of the rows at each epoch):
-    >>> readout = EH(learning_rate=1e-3, noise=0.5, baseline="sample", seed=0)
+    >>> readout = EH.version("eh_np_local", learning_rate=1e-3, noise=0.5, seed=0)
     >>> for epoch in range(10):
     ...     readout.partial_fit(X, Y, rng.permutation(len(X)))
     >>> scores = readout.run(X_test)
@@ -18,6 +19,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
+from canopy.models.readout_rules.eh_numpy import check_options, version_options
 from canopy.models.readout_rules.lms import row_rates
 
 jax.config.update("jax_enable_x64", True)  # float64, to match the NumPy node
@@ -28,7 +30,7 @@ def eh_epoch(carry, X, Y, order, noise, rates, alpha, baseline, reward, modulati
     """carry (W, b, z_bar, P_bar, steps) after the EH steps on the rows order of (X, Y), with the exploration noise
     noise (len(order), output_dim), the learning rate of row i rates[i]. dual: the rule in its dual form (X the kernel
     of the training rows, W the coefficients of the rows, as canopy.models.readout_rules.lms.lms_epoch)."""
-    def performance(out, y):
+    def performance(out, y):  # (2. reward)
         return -(out - y) ** 2 if reward == "per_output" else jnp.full(out.shape, -jnp.sum((out - y) ** 2))
 
     def step(carry, inputs):
@@ -37,13 +39,13 @@ def eh_epoch(carry, X, Y, order, noise, rates, alpha, baseline, reward, modulati
         x, y = X[i], Y[i]
         z = x @ W + b + xi
         P = performance(z, y)
-        if baseline == "sample":
+        if baseline == "sample":  # (1. baseline)
             z_bar = x @ W + b
             P_bar = performance(z_bar, y)
         else:  # (first step: the baselines start at the first output and performance)
             z_bar, P_bar = jnp.where(steps == 0, z, z_bar), jnp.where(steps == 0, P, P_bar)
-        M = (P > P_bar).astype(z.dtype) if modulation == "binary" else P - P_bar
-        eta = rates[i] / (1 + steps / decay) if decay else rates[i]
+        M = (P > P_bar).astype(z.dtype) if modulation == "binary" else P - P_bar  # (3. modulation)
+        eta = rates[i] / (1 + steps / decay) if decay else rates[i]  # (4. learning rate: rates normalized or not)
         exploration = eta * (z - z_bar) * M
         W = W.at[i].add(exploration) if dual else W + jnp.outer(x, exploration)
         if fit_bias:
@@ -55,21 +57,22 @@ def eh_epoch(carry, X, Y, order, noise, rates, alpha, baseline, reward, modulati
 
 
 class EH:
-    """EH readout, initial weights and bias zero (the options and defaults of canopy.models.readout_rules.eh_numpy.EH)."""
+    """EH readout, initial weights and bias zero (the options and defaults of canopy.models.readout_rules.eh_numpy.EH:
+    the version "eh")."""
 
-    def __init__(self, learning_rate=1e-3, decay=None, noise=0.5, baseline="filtered", alpha=0.2, reward="per_output",
-                 modulation="binary", fit_bias=True, seed=None, normalized=False):
-        if reward not in ("per_output", "global"):
-            raise ValueError(f"Unknown reward '{reward}': must be 'per_output' or 'global'.")
-        if baseline not in ("filtered", "sample"):
-            raise ValueError(f"Unknown baseline '{baseline}': must be 'filtered' or 'sample'.")
-        if modulation not in ("binary", "continuous"):
-            raise ValueError(f"Unknown modulation '{modulation}': must be 'binary' or 'continuous'.")
+    def __init__(self, learning_rate=1e-3, decay=None, noise=0.5, baseline="filtered", alpha=0.2, reward="global",
+                 modulation="binary", normalized=False, fit_bias=True, seed=None):
+        check_options(baseline, reward, modulation)
         self.learning_rate, self.decay, self.noise, self.alpha = learning_rate, decay, noise, alpha
         self.baseline, self.reward, self.modulation, self.fit_bias = baseline, reward, modulation, fit_bias
         self.normalized = normalized
         self.rng = np.random.default_rng(seed)
         self.carry, self.rates = None, None
+
+    @classmethod
+    def version(cls, name, **kwargs):
+        """EH of the version name of canopy.models.readout_rules.eh_numpy.VERSIONS, with the other parameters kwargs."""
+        return cls(**version_options(name), **kwargs)
 
     def partial_fit(self, X, Y, order):
         """Trained further on the rows order of (X, Y) (arrays, JAX ones to avoid a copy at each call)."""

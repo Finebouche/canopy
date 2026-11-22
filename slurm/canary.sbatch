@@ -11,6 +11,9 @@
 #     [nb_seeds] (reservoirs of the next-phrase studies, HAG_CANARY_TASK=next_phrase);
 #   - HAG_CANARY_MODE=readout_rules: learning rules of the readout of the next phrase python -m
 #     canopy.next_phrase_prediction.readout_rules (slurm/submit_readout_rules.sh);
+#   - HAG_CANARY_MODE=monomial_selection: selection of the monomials of the readout of order 2 python -m
+#     canopy.next_phrase_prediction.monomial_selection (slurm/submit_monomial_selection.sh), and
+#     HAG_CANARY_MODE=monomial_selection_rules: the online rules on the selected monomials (the same script, MODULE);
 #   - HAG_CANARY_MODE=certainty: certainty along the phrases python -m canopy.syllables_classification.certainty [size]
 #     [conditions] [nb_seeds] (canopy.next_phrase_prediction.certainty with HAG_CANARY_TASK=next_phrase).
 # The Optuna databases are in /dev/shm during the job (SQLite does not support the network file systems well, and the
@@ -99,6 +102,9 @@ elif [ "${HAG_CANARY_MODE:-hpo}" = next_phrase ]; then
 elif [ "${HAG_CANARY_MODE:-hpo}" = readout_rules ]; then
     if [ -n "${HAG_CANARY_TASKS:-}" ]; then set -- run "$@"; fi
     python -m canopy.next_phrase_prediction.readout_rules "$@"
+elif [ "${HAG_CANARY_MODE:-hpo}" = monomial_selection ] || [ "${HAG_CANARY_MODE:-hpo}" = monomial_selection_rules ]; then
+    if [ -n "${HAG_CANARY_TASKS:-}" ]; then set -- run "$@"; fi
+    python -m "canopy.next_phrase_prediction.$HAG_CANARY_MODE" "$@"
 elif [ "${HAG_CANARY_TASK:-}" = syllables ]; then
     python -m canopy.syllables_classification.hpo "$@"
 else

@@ -5,8 +5,19 @@ over the steps (500 inputs, 30 outputs), the same weights (float64):
 
     e = W^T x + b - y,    dW = -eta x e^T,    db = -eta e
 
-normalized (NLMS): the learning rate of each row divided by its squared norm (+ 1, the input of the bias), eta =
-learning_rate / (||x||^2 + 1), stable for a learning rate below 2 whatever the norms of the rows.
+The two versions differ only by the learning rate eta (rules of canopy.next_phrase_prediction.readout_rules):
+  - LMS (Widrow & Hoff 1960, "Adaptive switching circuits"), normalized=False, rule "lms": a single eta for all the
+    rows and all the steps (reservoirpy's LMS). readout_rules gives it as eta = c / (mean ||x||^2 + 1), the mean
+    computed once on the training rows (the classical step c / tr(R) of Widrow and Haykin, stable in the mean for c < 2
+    whatever the size of the reservoir): still LMS, the same algorithm, only its step written as a fraction c of the
+    stability bound, so that the same grid of c fits every reservoir.
+  - NLMS (normalized LMS: Nagumo & Noda 1967, Albert & Gardner 1967), normalized=True, rule "nlms": eta recomputed for
+    each row from its own squared norm (+ 1, the input of the bias), eta = learning_rate / (||x||^2 + 1) (epsilon-NLMS,
+    epsilon = 1), stable for a learning rate below 2 whatever the norms of the rows. In reservoir computing, the same
+    step is in the BPDC rule of Steil (2004, as a decorrelation, with a backpropagated error term), and an NLMS
+    readout of an echo state network is evaluated by Yuenyong (2014, PhD thesis, Tokyo Tech: worse than RLS).
+  - dual=True (lms_epoch, canopy.models.readout_rules.kernel): the same rule on the features of a kernel, written on
+    the coefficients of the training rows: kernel LMS (Liu, Pokharel & Principe 2008), normalized in "nlms:<n>".
 
 Example (rows of all the training songs, the order of the rows at each epoch):
     >>> readout = LMS(learning_rate=1e-3)
@@ -38,13 +49,16 @@ def lms_epoch(W, b, X, Y, order, rates, dual=False):
 
 
 def row_rates(learning_rate, squared_norms, normalized):
-    """Learning rate of each row: learning_rate, or learning_rate / (squared norm + 1) (normalized)."""
+    """Learning rate of each row: learning_rate (LMS, EH), or learning_rate / (squared norm + 1) (normalized: NLMS,
+    and the step of neh)."""
     squared_norms = jnp.asarray(squared_norms)
     return learning_rate / (squared_norms + 1) if normalized else jnp.full(squared_norms.shape, learning_rate)
 
 
 class LMS:
-    """LMS readout, initial weights and bias zero (reservoirpy's LMS with its defaults); normalized: NLMS."""
+    """LMS readout, initial weights and bias zero (reservoirpy's LMS with its defaults): LMS (Widrow & Hoff), a constant
+    learning rate; normalized: NLMS, the learning rate of each row divided by its squared norm + 1 (see the module
+    docstring)."""
 
     def __init__(self, learning_rate, normalized=False):
         self.learning_rate, self.normalized = learning_rate, normalized

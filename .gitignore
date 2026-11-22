@@ -36,3 +36,7 @@ CLAUDE.md
 /canopy/datasets/llb3/
 /canopy/datasets/mouse_usv/
 /canopy/datasets/incoming/
+
+# Local: sources of the reports (articles and theses, under copyright) and the configuration of Claude Code
+/reports/sources/
+/.claude/

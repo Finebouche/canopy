@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from canopy.models.readout_rules.eh_numpy import EH
+from canopy.models.readout_rules.eh_numpy import EH, VERSIONS
 
 
 def clusters(rng, centers, n):
@@ -30,7 +30,7 @@ def test_filtered_baseline_learns_slow_inputs():
     X, Y = clusters(rng, centers, 600)
     Xt, Yt = clusters(rng, centers, 1000)
     X = np.repeat(X, 20, axis=0) + 0.05 * rng.normal(size=(12000, 50))
-    readout = EH(learning_rate=2e-5, noise=0.5, baseline="filtered", alpha=0.5, seed=0)
+    readout = EH(learning_rate=2e-5, noise=0.5, baseline="filtered", alpha=0.5, reward="per_output", seed=0)
     readout.partial_fit(X, np.repeat(Y, 20, axis=0))
     assert np.mean(readout.run(Xt).argmax(axis=1) == Yt.argmax(axis=1)) > 0.95
 
@@ -45,3 +45,15 @@ def test_run_is_deterministic_and_targets_needed():
         readout.partial_fit(x, None)
     with pytest.raises(ValueError):
         EH(reward="local")
+
+
+def test_versions():
+    # the defaults are the version "eh" (Hoerzer et al.), each version one ingredient away from the previous one
+    default, eh = EH(), EH.version("eh")
+    for option in ("baseline", "reward", "modulation", "normalized"):
+        assert getattr(default, option) == getattr(eh, option)
+    names = list(VERSIONS)
+    for previous, name in zip(names, names[1:]):
+        assert sum(VERSIONS[previous][k] != VERSIONS[name][k] for k in VERSIONS[name]) == 1
+    with pytest.raises(ValueError):
+        EH.version("hoerzer")
