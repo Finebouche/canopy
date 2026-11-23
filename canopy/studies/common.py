@@ -75,17 +75,18 @@ def stop_after_failures(max_failures=10):
     return callback
 
 
-def reservoir_params(trial, model, max_length, leak=False, input_gains=False):
+def reservoir_params(trial, model, max_length, leak=False, input_gains=False, input_scaling_max=0.2):
     """
     Parameters of each part of the model (prefix "<part>:" in a hybrid), the ranges of hag.hpo.hpo_esn. With
     input_gains, a gain for each group of input features: the MFCC (input_scaling) and, relative to them, their deltas
     (delta_gain) and delta-deltas (delta2_gain), as canapy (input scaling per group of its ESN). With leak, the leak
     rate of each reservoir (1 otherwise; canapy: 0.1), used by the HAG learning too. max_length: the number of frames of
-    the longest phrase of the train songs (bounds of the increments of HAG).
+    the longest phrase of the train songs (bounds of the increments of HAG). input_scaling_max: the largest input
+    scaling of the search (0.2 for the MFCC, in (0, 1)).
     """
     params = {}
     for part, p in parts(model):
-        params[p + "input_scaling"] = trial.suggest_float(p + "input_scaling", 0.01, 0.2, step=0.005)
+        params[p + "input_scaling"] = trial.suggest_float(p + "input_scaling", 0.01, input_scaling_max, step=0.005)
         if input_gains:
             params[p + "delta_gain"] = trial.suggest_float(p + "delta_gain", 0.01, 100, log=True)
             params[p + "delta2_gain"] = trial.suggest_float(p + "delta2_gain", 0.01, 100, log=True)

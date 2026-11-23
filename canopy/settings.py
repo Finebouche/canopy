@@ -8,6 +8,8 @@ their names, their storage, the cross-validation.
   CANOPY_RESET_EACH_PHRASE=1: the reservoirs hear the current phrase only, from a zero state (next phrase;
       "next_phrase_reset_");
   CANOPY_SEARCH_INPUT_GAINS=1: the gain of each group of input features in the search (syllables; "syllables_gains_");
+  CANOPY_LABELS_WITH_DURATIONS=1: the reservoirs reading the labels also read the duration of each phrase and the
+    silence before it (next phrase from the labels; studies "next_phrase_labels_..._durations_");
   CANOPY_N_TRIALS: trials of a study (400); CANOPY_WORKERS: processes optimizing a study (1);
   CANOPY_JOB_STUDIES_DIR: folder of the Optuna database of a job (set by slurm/canary.sbatch, in /dev/shm during the
       job);
@@ -17,12 +19,14 @@ their names, their storage, the cross-validation.
 (CANOPY_TASK: the study optimized by slurm/canary.sbatch, "boundaries", "next_phrase" or "syllables"; the scripts of the
 studies do not read it.)
 
-The studies of canopy.studies ("phrase_boundaries", "next_phrase", "syllables_classification") write in one folder each,
+The studies of canopy.studies ("phrase_boundaries", "next_phrase", "next_phrase_labels", "syllables_classification")
+write in one folder each,
 outputs/<study> (outputs_dir): hpo/ (one Optuna database per dataset with all the Optuna studies of the reservoirs,
 database), performances/ (the results of the final evaluations), analysis/, figures/; the generations, in
 outputs/syllable_generation and outputs/song_generation.
 Optuna studies: PREFIXES[study] + "<model>_<size>" (study_name): the phrase boundaries without prefix,
-"next_phrase_[calls_][reset_][leak_]" and "syllables_[gains_][leak_]".
+"next_phrase_[calls_][reset_][leak_]", "next_phrase_labels_[calls_][durations_][leak_]" and
+"syllables_[gains_][leak_]".
 """
 import os
 from pathlib import Path
@@ -33,6 +37,7 @@ LEAK = os.environ.get("CANOPY_LEAKY_RESERVOIRS") == "1"
 CALLS = os.environ.get("CANOPY_WITH_CALLS") == "1"
 RESET = os.environ.get("CANOPY_RESET_EACH_PHRASE") == "1"
 INPUT_GAINS = os.environ.get("CANOPY_SEARCH_INPUT_GAINS") == "1"
+LABELS_WITH_DURATIONS = os.environ.get("CANOPY_LABELS_WITH_DURATIONS") == "1"
 N_TRIALS = int(os.environ.get("CANOPY_N_TRIALS", 400))
 WORKERS = int(os.environ.get("CANOPY_WORKERS", 1))
 JOB_STUDIES = os.environ.get("CANOPY_JOB_STUDIES_DIR")
@@ -47,6 +52,8 @@ CV_SEED = 1000  # (the matrices of fold k drawn with np.random.seed(CV_SEED + k)
 
 PREFIXES = {"phrase_boundaries": "",  # (the boundary studies have no variant: no leak)
             "next_phrase": "next_phrase_" + "calls_" * CALLS + "reset_" * RESET + "leak_" * LEAK,
+            "next_phrase_labels": ("next_phrase_labels_" + "calls_" * CALLS + "durations_" * LABELS_WITH_DURATIONS
+                                   + "leak_" * LEAK),
             "syllables_classification": "syllables_" + "gains_" * INPUT_GAINS + "leak_" * LEAK}
 
 

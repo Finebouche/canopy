@@ -6,9 +6,12 @@ the metrics of the reservoirs (canopy.studies.next_phrase.task.metrics), and the
 not seen in the train songs (marginal frequencies then).
 
 Results: outputs/next_phrase/performances/next_phrase_ngrams.csv (next_phrase_calls_ngrams.csv with
-CANOPY_WITH_CALLS=1).
-Usage: python -m canopy.studies.next_phrase.ngrams
+CANOPY_WITH_CALLS=1). With the argument "all", the n-grams are counted on all the songs and scored on these same songs
+(no train and test songs): their accuracy when they know every song, the share of the next phrases that the n previous
+labels determine in this dataset (results: ..._ngrams_all_songs.csv).
+Usage: python -m canopy.studies.next_phrase.ngrams [all]
 """
+import sys
 from collections import Counter
 
 import numpy as np
@@ -21,6 +24,9 @@ MAX_ORDER = 10
 
 if __name__ == "__main__":
     songs, train_songs, test_songs, frame, classes = load_task_dataset()
+    all_songs = sys.argv[1:] == ["all"]  # (counted and scored on all the songs)
+    if all_songs:
+        train_songs = test_songs = train_songs + test_songs
     true = np.concatenate([songs[w]["next"] for w in test_songs])
     index = {label: i for i, label in enumerate(classes)}
 
@@ -52,6 +58,7 @@ if __name__ == "__main__":
     pd.set_option("display.width", 200)
     print(results.round(4).to_string(index=False))
     outputs_dir("next_phrase", "performances").mkdir(parents=True, exist_ok=True)
-    file_name = outputs_dir("next_phrase", "performances") / f"next_phrase_{'calls_' * CALLS}ngrams.csv"
+    file_name = (outputs_dir("next_phrase", "performances")
+                 / f"next_phrase_{'calls_' * CALLS}ngrams{'_all_songs' * all_songs}.csv")
     results.to_csv(file_name, index=False)
     print("Saved to", file_name)

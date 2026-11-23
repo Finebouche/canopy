@@ -1,14 +1,15 @@
 """
 Layout of canopy (CLAUDE.md, README): one folder per study in canopy/studies, each file of a study importing only the
 shared modules (settings, common, datasets, models, studies.common) and the files of its own study; task.py imports
-only the shared modules; the song generator builds on the next phrase and the generation of syllables.
+only the shared modules; the song generator builds on the next phrase and the generation of syllables, and the
+control next_phrase_labels on the next phrase.
 """
 import ast
 from pathlib import Path
 
 PACKAGE = Path(__file__).resolve().parents[1] / "canopy"
 SHARED = ("canopy.settings", "canopy.common", "canopy.datasets", "canopy.models", "canopy.studies.common")
-BUILDS_ON = {"song_generation": ("next_phrase", "syllable_generation")}
+BUILDS_ON = {"song_generation": ("next_phrase", "syllable_generation"), "next_phrase_labels": ("next_phrase",)}
 
 
 def imports(path):
@@ -25,8 +26,8 @@ def test_each_study_imports_only_the_shared_modules_and_its_own_files():
             continue  # (common.py, __init__.py)
         study = path.parent.name
         allowed = SHARED + tuple(f"canopy.studies.{s}" for s in (study, *BUILDS_ON.get(study, ())))
-        if path.stem == "task":
-            allowed = SHARED
+        if path.stem == "task":  # (a task imports only the shared modules, and the tasks its study builds on)
+            allowed = SHARED + tuple(f"canopy.studies.{s}.task" for s in BUILDS_ON.get(study, ()))
         for module in imports(path):
             assert module.startswith(allowed), f"{study}/{path.name} imports {module}"
 
