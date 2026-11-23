@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Phrase suivante : effet des annotations corrigées</title>
 <style>
-:root{--bg:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--old:#888780;--new:#2a78d6;--res:#eb6834}
-@media (prefers-color-scheme: dark){:root{--bg:#151515;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--old:#888780;--new:#3987e5;--res:#d95926}}
+:root{--bg:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--old:#888780;--new:#2a78d6;--res:#008300;--all:#6250d6;--pale:#afa9ec;--lab:#d18b00}
+@media (prefers-color-scheme: dark){:root{--bg:#151515;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--old:#888780;--new:#3987e5;--res:#0ca30c;--all:#9085e9;--pale:#6c63c9;--lab:#e8a917}}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif}
 main{max-width:1240px;margin:0 auto;padding:24px 16px 48px}
 h1{font-size:22px;font-weight:500;margin:0 0 4px}
@@ -35,6 +35,14 @@ svg.model{display:block;width:100%;max-width:360px;height:auto;margin-top:6px}
 .s-t{fill:var(--ink);font-size:12.5px;text-anchor:middle}
 .s-m{fill:var(--muted);font-size:11.5px;text-anchor:middle}
 .s-bar{fill:var(--old)}.s-best{fill:var(--new)}
+.s-res{fill:none;stroke:var(--res);stroke-width:1.8}.s-lab{fill:none;stroke:var(--lab);stroke-width:1.8}.s-key{fill:none;stroke-width:1.8}
+figcaption .sq{display:inline-block;margin-right:7px}
+.half{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:32px;align-items:start}
+table.t{border-collapse:collapse;font-size:13px;margin-top:8px;width:100%}
+table.t th,table.t td{text-align:right;padding:4px 8px;border-bottom:1px solid var(--grid)}
+table.t th:first-child,table.t td:first-child{text-align:left}
+table.t th{font-weight:500;color:var(--ink2)}
+.note{font-size:13px}
 </style>
 </head>
 <body>
@@ -42,54 +50,64 @@ svg.model{display:block;width:100%;max-width:360px;height:auto;margin-top:6px}
 <h1>Phrase suivante : effet des annotations corrigées</h1>
 <p>marron1, avec les calls comme phrases. Les annotations ont été corrigées le 3 novembre 2026 (21 phrases) puis le 7 novembre (41 segments). Les études et les n-grammes ont été refaits ensuite.</p>
 
-<h2>Les études des réservoirs changent peu entre octobre et novembre</h2>
-<p>Meilleure exactitude en validation croisée de chaque étude ridge (« last » → « last », 400 essais). Octobre : <code>outputs/next_phrase/hpo/marron1_before_annotation_relabels_db.sqlite3</code>. Novembre : <code>outputs/next_phrase/hpo/marron1_db.sqlite3</code>.</p>
+<h2>Les études changent peu entre octobre et novembre, et les étiquettes donnent 6 à 8 points de moins que l'audio</h2>
+<p>Meilleure exactitude en validation croisée de chaque étude ridge (« last » → « last », 400 essais). Octobre : <code>outputs/next_phrase/hpo/marron1_before_annotation_relabels_db.sqlite3</code>. Novembre : <code>outputs/next_phrase/hpo/marron1_db.sqlite3</code>. Les réservoirs sur les étiquettes ont leurs propres études, avec fuite seulement, du 23 novembre : <code>outputs/next_phrase_labels/hpo/marron1_db.sqlite3</code>. Sur les 92 chants test (10 graines), ils atteignent 78,7 à 78,9 %, contre 84,8 à 86,1 % sur l'audio, et reconnaissent la fin du chant dans 0 à 3 % des cas, contre 7 à 14 %.</p>
 <div class="row">
 <div>
 <div class="legend">
 <span><span class="sq" style="background:var(--old)"></span>26 et 27 octobre, anciennes annotations</span>
-<span><span class="sq" style="background:var(--new)"></span>10 et 11 novembre, annotations actuelles</span>
+<span><span class="sq" style="background:var(--res)"></span>10 et 11 novembre, annotations actuelles</span>
+<span><span class="sq" style="background:var(--lab)"></span>23 novembre, réservoir sur les étiquettes, annotations actuelles</span>
 </div>
-<div class="box" style="height:420px"><canvas id="studies" role="img" aria-label="Meilleure exactitude en validation croisée des 16 études, octobre et novembre">Avec fuite, random_ei 1000 : 86,55 % puis 86,87 %. Sans fuite, var_hag 1000 : 83,80 % puis 85,45 %.</canvas></div>
+<div class="box" style="height:500px"><canvas id="studies" role="img" aria-label="Meilleure exactitude en validation croisée des 16 études sur l'audio, octobre et novembre, et des 8 études sur les étiquettes">Avec fuite, random_ei 1000 : 86,55 % puis 86,87 % sur l'audio, 79,26 % sur les étiquettes. Sans fuite, var_hag 1000 : 83,80 % puis 85,45 %.</canvas></div>
 </div>
 <figure>
-<figcaption>Modèle 1 : un réservoir et un readout ridge</figcaption>
+<figcaption><span class="sq" style="background:var(--res)"></span>Modèle 1 : un réservoir et un readout ridge</figcaption>
 <p>Le réservoir écoute tout le chant. À la fin de chaque phrase, le readout lit son état et prédit la phrase suivante.</p>
-<svg class="model" viewBox="0 0 340 436" role="img" aria-label="Schéma : l'audio du chant donne 13 MFCC par trame, lus par un réservoir de 500 ou 1 000 neurones ; à la fin de chaque phrase, un readout ridge lit l'état du réservoir et donne la phrase suivante parmi 29 classes">
-<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="s-head" d="M0 0L10 5L0 10z"/></marker></defs>
+<svg class="model" viewBox="0 0 340 448" role="img" aria-label="Schéma : le réservoir de 500 ou 1 000 neurones lit soit les 13 MFCC de l'audio, un pas par trame (modèle 1, en vert), soit l'étiquette de chaque phrase, un pas par phrase (modèle 1 bis, en jaune) ; à la fin de chaque phrase, un readout ridge lit l'état du réservoir et donne la phrase suivante parmi 29 classes">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="s-head" d="M0 0L10 5L0 10z"/></marker>
+<linearGradient id="greenYellow" gradientUnits="userSpaceOnUse" x1="50" y1="0" x2="290" y2="0"><stop offset="0" style="stop-color:var(--res)"/><stop offset="1" style="stop-color:var(--lab)"/></linearGradient>
+<linearGradient id="greenYellowDown" gradientUnits="userSpaceOnUse" x1="0" y1="6" x2="0" y2="44"><stop offset="0" style="stop-color:var(--res)"/><stop offset="1" style="stop-color:var(--lab)"/></linearGradient></defs>
 <rect class="s-fill" x="14" y="12" width="72" height="26" rx="4"/><rect class="s-fill" x="90" y="12" width="72" height="26" rx="4"/><rect class="s-fill" x="166" y="12" width="72" height="26" rx="4"/>
 <rect class="s-dash" x="246" y="12" width="72" height="26" rx="4"/>
 <text class="s-t" x="50" y="29">J1</text><text class="s-t" x="126" y="29">J2</text><text class="s-t" x="202" y="29">B1</text><text class="s-t" x="282" y="29">?</text>
-<line class="s-out" x1="242" y1="6" x2="242" y2="44"/>
-<text class="s-m" x="170" y="58">phrases du chant ; trait bleu : fin de la phrase B1</text>
-<line class="s-line" x1="170" y1="66" x2="170" y2="84" marker-end="url(#ah)"/>
-<rect class="s-box" x="70" y="86" width="200" height="32" rx="6"/><text class="s-t" x="170" y="106">13 MFCC par trame de l'audio</text>
-<line class="s-line" x1="170" y1="118" x2="170" y2="138" marker-end="url(#ah)"/>
+<line class="s-key" stroke="url(#greenYellowDown)" x1="242" y1="6" x2="242" y2="44"/>
+<text class="s-m" x="170" y="58">phrases du chant ; trait vert et jaune : fin de la phrase B1</text>
+<line class="s-line" x1="90" y1="66" x2="90" y2="84" marker-end="url(#ah)"/><line class="s-line" x1="250" y1="66" x2="250" y2="84" marker-end="url(#ah)"/>
+<rect class="s-res" x="14" y="86" width="152" height="44" rx="6"/><text class="s-t" x="90" y="104">13 MFCC de l'audio</text><text class="s-m" x="90" y="120">un pas par trame</text>
+<rect class="s-lab" x="174" y="86" width="152" height="44" rx="6"/><text class="s-t" x="250" y="104">étiquette de la phrase</text><text class="s-m" x="250" y="120">un pas par phrase</text>
+<line class="s-line" x1="90" y1="130" x2="90" y2="150" marker-end="url(#ah)"/><line class="s-line" x1="250" y1="130" x2="250" y2="150" marker-end="url(#ah)"/>
+<g transform="translate(0,12)">
 <rect class="s-box" x="50" y="140" width="240" height="112" rx="14"/>
 <path class="s-thin" d="M92 172L140 160M140 160L196 176M196 176L246 164M92 172L118 214M118 214L170 204M170 204L196 176M170 204L226 220M226 220L246 164M140 160L170 204M118 214L92 172"/>
 <path class="s-thin" d="M246 164c22 -18 22 18 0 6" marker-end="url(#ah)"/>
 <circle class="s-node" cx="92" cy="172" r="7"/><circle class="s-node" cx="140" cy="160" r="7"/><circle class="s-node" cx="196" cy="176" r="7"/><circle class="s-node" cx="246" cy="164" r="7"/><circle class="s-node" cx="118" cy="214" r="7"/><circle class="s-node" cx="170" cy="204" r="7"/><circle class="s-node" cx="226" cy="220" r="7"/>
-<text class="s-m" x="170" y="244">réservoir : 500 ou 1 000 neurones récurrents</text>
+<text class="s-m" x="170" y="243">500 ou 1 000 neurones récurrents</text>
 <line class="s-line" x1="170" y1="252" x2="170" y2="272" marker-end="url(#ah)"/>
 <rect class="s-box" x="70" y="274" width="200" height="32" rx="6"/><text class="s-t" x="170" y="294">état à la fin de la phrase</text>
 <line class="s-line" x1="170" y1="306" x2="170" y2="326" marker-end="url(#ah)"/>
 <rect class="s-box" x="70" y="328" width="200" height="32" rx="6"/><text class="s-t" x="170" y="348">readout linéaire (ridge)</text>
 <line class="s-line" x1="170" y1="360" x2="170" y2="380" marker-end="url(#ah)"/>
-<rect class="s-out" x="50" y="382" width="240" height="44" rx="6"/><text class="s-t" x="170" y="400">phrase suivante</text><text class="s-m" x="170" y="416">29 classes : les phrases, call et END</text>
+<rect class="s-key" stroke="url(#greenYellow)" x="50" y="382" width="240" height="44" rx="6"/><text class="s-t" x="170" y="400">phrase suivante</text><text class="s-m" x="170" y="416">29 classes : les phrases, call et END</text>
+</g>
 </svg>
+<figcaption style="margin-top:22px"><span class="sq" style="background:var(--lab)"></span>Modèle 1 bis : le même réservoir sur les étiquettes</figcaption>
+<p>Le réservoir ne lit pas l'audio. Il avance d'un pas par phrase et reçoit la vraie étiquette de cette phrase, à la place des 13 MFCC. Le readout lit son état après chaque phrase.</p>
 </figure>
 </div>
 
-<h2>Les n-grammes gagnent 0,5 à 2,4 points avec les annotations actuelles</h2>
-<p>Exactitude sur les 92 chants test des n-grammes des étiquettes des phrases précédentes (<code>outputs/next_phrase/performances/next_phrase_calls_ngrams.csv</code>), et celle du réservoir random_ei à 1 000 neurones avec fuite (10 graines).</p>
+<h2>Les n-grammes restent sous le réservoir, même comptés sur les chants qu'ils prédisent</h2>
+<p>Exactitude des n-grammes des étiquettes des phrases précédentes, selon leur ordre. Sur les 92 chants test, ils gagnent 0,5 à 2,4 points avec les annotations actuelles et culminent à 77,5 % à l'ordre 5. Comptés et évalués sur les mêmes 459 chants, ils n'atteignent que 83,6 % à l'ordre 10, et ne dépassent le réservoir sur l'audio (86,1 % en test, random_ei à 1 000 neurones avec fuite, 10 graines) qu'à partir de l'ordre 15, quand ils récitent les chants. Sources : <code>next_phrase_calls_ngrams.csv</code> et <code>next_phrase_calls_ngrams_all_songs.csv</code>, dans <code>outputs/next_phrase/performances</code> ; les ordres 15 à 50 viennent d'un calcul ponctuel.</p>
 <div class="row">
 <div>
 <div class="legend">
-<span><span class="ln" style="border-top-style:dashed;border-color:var(--old)"></span>3 novembre, anciennes annotations</span>
-<span><span class="ln" style="border-color:var(--new)"></span>annotations actuelles</span>
-<span><span class="ln" style="border-top-style:dotted;border-color:var(--res)"></span>réservoir random_ei 1000 avec fuite (86,1 %)</span>
+<span><span class="ln" style="border-color:var(--new)"></span>n-gramme, chants test</span>
+<span><span class="ln" style="border-top-style:dashed;border-color:var(--old)"></span>n-gramme, chants test, anciennes annotations (3 novembre)</span>
+<span><span class="ln" style="border-top-style:dashed;border-color:var(--all)"></span>n-gramme compté et évalué sur tous les chants</span>
+<span><span class="ln" style="border-top-style:dotted;border-color:var(--res)"></span>réservoir sur l'audio, chants test (86,1 %)</span>
+<span><span class="ln" style="border-top-style:dotted;border-color:var(--lab)"></span>réservoir sur les étiquettes, chants test (78,8 %)</span>
 </div>
-<div class="box" style="height:320px"><canvas id="ngrams" role="img" aria-label="Exactitude des n-grammes selon l'ordre, avant et après la correction des annotations">Ordre 5 : 76,09 % puis 77,45 %. Adaptatif : 77,14 % puis 77,98 %. Réservoir : 86,1 %.</canvas></div>
+<div class="box" style="height:380px"><canvas id="ngrams" role="img" aria-label="Exactitude des n-grammes selon l'ordre, avant et après la correction des annotations">Chants test, ordre 5 : 76,09 % puis 77,45 % ; adaptatif : 77,14 % puis 77,98 %. Tous les chants : 83,6 % à l'ordre 10, 90,2 % à l'ordre 20, 91,3 % à l'ordre 50. Réservoir sur l'audio : 86,1 %. Réservoir sur les étiquettes : 78,8 %.</canvas></div>
 </div>
 <figure>
 <figcaption>Modèle 2 : un n-gramme des étiquettes</figcaption>
@@ -131,6 +149,30 @@ svg.model{display:block;width:100%;max-width:360px;height:auto;margin-top:6px}
 </svg>
 </figure>
 </div>
+
+<h2>L'audio aide surtout aux deux premières phrases et après la dixième</h2>
+<p>Erreur selon le rang de la phrase prédite dans le chant. Sur les 92 chants test : le réservoir sur l'audio (random_ei, 1 000 neurones, 5 graines) et le n-gramme adaptatif. Sur les 459 chants : le n-gramme compté et évalué sur ces mêmes chants. Seul l'ordre 30, qui récite les chants, fait disparaître l'erreur après le rang 20.</p>
+<div class="row">
+<div>
+<div class="legend">
+<span><span class="ln" style="border-color:var(--res);border-top-width:3px"></span>réservoir sur l'audio, test</span>
+<span><span class="ln" style="border-top-style:dashed;border-color:var(--new)"></span>n-gramme adaptatif, test</span>
+<span><span class="ln" style="border-color:var(--pale)"></span>n-gramme d'ordre 10, tous les chants</span>
+<span><span class="ln" style="border-color:var(--all);border-top-width:3px"></span>n-gramme d'ordre 30, tous les chants</span>
+</div>
+<div class="box" style="height:400px"><canvas id="rank" role="img" aria-label="Erreur par rang : réservoir sur l'audio en test, n-gramme adaptatif en test, n-grammes d'ordre 10 et 30 comptés et évalués sur tous les chants">Rangs 1 et 2 : réservoir 16,1 %, n-gramme adaptatif 32,1 %. Rangs 11 à 20 : 15,7 % et 25,5 %. N-gramme sur tous les chants au rang 30 : 18,8 % à l'ordre 10, 0,4 % à l'ordre 30.</canvas></div>
+</div>
+<div>
+<table class="t"><tr><th>Rangs</th><th>Réservoir sur l'audio</th><th>N-gramme adaptatif</th><th>Points</th></tr>
+<tr><td>1 et 2</td><td>16,1 %</td><td>32,1 %</td><td>184</td></tr>
+<tr><td>3 à 10</td><td>8,7 %</td><td>11,4 %</td><td>729</td></tr>
+<tr><td>11 à 20</td><td>15,7 %</td><td>25,5 %</td><td>757</td></tr>
+<tr><td>21 à 30</td><td>14,9 %</td><td>24,8 %</td><td>537</td></tr>
+<tr><td>31 à 40</td><td>13,9 %</td><td>27,2 %</td><td>324</td></tr></table>
+<p class="note">Le tableau donne l'erreur sur les chants test, par groupe de rangs. Au rang 1, le réservoir se trompe dans 15 % des cas et les n-grammes dans 32 à 37 % : l'audio qui précède le chant renseigne déjà sur sa première phrase.</p>
+<p class="note">Chaque rang compte 92 chants test au plus, 41 au rang 30 et 24 au rang 40 : les moyennes du tableau sont plus fiables que les valeurs rang par rang. Les ordres 1 et 5 du n-gramme sur tous les chants suivent l'ordre 10, avec 5 à 10 points d'erreur de plus après le rang 10.</p>
+</div>
+</div>
 </main>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <script>
@@ -140,34 +182,64 @@ const studies = [...models.map(m => 'fuite · ' + m), ...models.map(m => 'sans f
 // best cross-validation accuracy (%) of each study: October (old annotations), November (current annotations)
 const october = [85.26, 85.83, 85.53, 86.33, 85.54, 86.30, 85.90, 86.55, 83.75, 84.39, 83.31, 83.80, 78.84, 81.19, 81.64, 83.57];
 const november = [85.63, 86.00, 85.54, 86.37, 85.79, 86.62, 86.13, 86.87, 83.58, 84.35, 83.10, 85.45, 78.85, 81.16, 82.09, 83.85];
+// the reservoirs that read the labels: studies with leak only
+const labelStudies = [79.39, 79.39, 79.11, 79.17, 79.19, 79.25, 79.25, 79.26, ...models.map(() => null)];
 // test accuracy (%) of the n-grams, orders 1 to 10 then adaptive
-const orders = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '', 'adaptatif'];  // ('': a gap before the adaptive one)
-const ngramsOld = [74.21, 75.53, 75.60, 75.38, 76.09, 74.74, 73.65, 71.55, 69.59, 67.08, null, 77.14];
-const ngramsNew = [74.72, 76.22, 76.40, 76.52, 77.45, 76.29, 75.39, 73.63, 71.76, 69.44, null, 77.98];
-const RESERVOIR = 86.1;
+// orders 1 to 10, then 15, 20, 30 and 50 (on all the songs only), then adaptive ('': a gap before the adaptive one)
+const orders = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '15', '20', '30', '50', '', 'adaptatif'];
+const ngramsOld = [74.21, 75.53, 75.60, 75.38, 76.09, 74.74, 73.65, 71.55, 69.59, 67.08, null, null, null, null, null, 77.14];
+const ngramsNew = [74.72, 76.22, 76.40, 76.52, 77.45, 76.29, 75.39, 73.63, 71.76, 69.44, null, null, null, null, null, 77.98];
+// the n-grams counted and scored on all the songs (the adaptive one is then the highest order: not shown)
+const ngramsAll = [75.24, 77.35, 78.31, 79.04, 80.19, 80.80, 81.52, 82.20, 82.86, 83.64, 87.6, 90.2, 91.2, 91.3, null, null];
+const RESERVOIR = 86.1, LABEL_RESERVOIR = 78.8;  // random_ei, 1000 neurons, leak, test songs, 10 seeds
+// error (%) by rank of the predicted phrase, test songs: reservoir on the audio (5 seeds), adaptive n-gram, reservoir on the train songs
+const rankReservoir = [15.2, 17.0, 4.6, 7.6, 6.5, 2.4, 17.8, 11.0, 10.0, 9.5, 15.8, 25.2, 16.6, 13.9, 12.9, 23.0, 13.1, 10.0, 11.6, 12.5, 15.0, 10.8, 14.8, 13.0, 8.1, 15.2, 14.8, 18.3, 23.6, 19.0, 7.2, 10.3, 9.7, 13.1, 25.3, 9.4, 11.6, 28.3, 7.7, 20.0];
+const rankNgram = [37.0, 27.2, 7.6, 7.6, 7.6, 5.4, 20.7, 13.2, 15.6, 13.6, 20.9, 30.6, 30.5, 27.8, 24.1, 35.1, 17.1, 22.1, 19.4, 25.4, 21.9, 20.6, 22.6, 22.8, 27.8, 24.1, 22.0, 27.1, 29.5, 34.1, 17.9, 30.8, 28.6, 8.6, 26.5, 15.6, 38.7, 44.8, 26.9, 41.7];
+const testSongs = [92, 92, 92, 92, 92, 92, 92, 91, 90, 88, 86, 85, 82, 79, 79, 74, 70, 68, 67, 67, 64, 63, 62, 57, 54, 54, 50, 48, 44, 41, 39, 39, 35, 35, 34, 32, 31, 29, 26, 24];
+// error (%) by rank of the n-gram counted and scored on all the songs, by order
+const rankAll = {1: [32.2, 24.0, 10.5, 7.2, 9.8, 5.5, 13.8, 19.9, 14.4, 20.9, 21.1, 33.6, 31.7, 24.1, 30.8, 33.7, 29.1, 31.1, 21.1, 26.6, 29.4, 28.1, 25.5, 22.1, 29.3, 31.7, 27.6, 27.4, 27.5, 29.9, 25.1, 26.3, 24.6, 31.7, 31.0, 33.5, 34.3, 42.1, 30.3, 37.3],
+  5: [32.2, 23.5, 8.7, 5.4, 7.0, 3.9, 11.8, 13.0, 9.0, 15.4, 17.8, 30.8, 27.0, 23.9, 21.1, 27.7, 22.6, 21.9, 17.2, 21.7, 24.3, 21.1, 21.1, 17.1, 20.1, 21.9, 20.8, 23.7, 18.9, 23.7, 19.4, 21.2, 21.5, 23.9, 21.1, 22.8, 28.7, 36.8, 22.7, 28.2],
+  10: [32.2, 23.5, 8.7, 5.4, 7.0, 3.9, 10.5, 10.6, 7.0, 13.4, 13.7, 25.6, 26.5, 17.0, 21.1, 19.8, 17.8, 17.8, 13.6, 18.0, 20.8, 18.5, 16.4, 11.1, 18.3, 16.2, 15.6, 17.0, 13.3, 18.8, 18.0, 19.7, 16.2, 16.1, 12.9, 14.6, 21.7, 28.6, 19.3, 20.9],
+  30: [32.2, 23.5, 8.7, 5.4, 7.0, 3.9, 10.5, 10.6, 7.0, 13.4, 12.7, 22.5, 22.6, 14.5, 14.1, 15.5, 11.9, 10.4, 4.5, 7.7, 8.0, 5.3, 2.3, 2.5, 2.9, 2.6, 1.2, 1.7, 0.4, 0.4, 0.0, 0.5, 0.5, 1.1, 1.2, 0.0, 0.0, 0.8, 0.0, 1.8]};
+const allSongs = [459, 459, 459, 459, 458, 456, 456, 453, 443, 441, 432, 422, 407, 394, 389, 368, 354, 338, 331, 323, 313, 303, 298, 280, 273, 265, 250, 241, 233, 224, 211, 198, 191, 180, 171, 158, 143, 133, 119, 110];
 let charts = [];
 function draw() {
   charts.forEach(c => c.destroy());
-  const ink = css('--muted'), grid = css('--grid'), old = css('--old'), now = css('--new'), res = css('--res');
-  const tip = unit => ({callbacks: {label: c => `${c.dataset.label} : ${(c.parsed.x ?? c.parsed.y).toFixed(2)} ${unit}`}});
+  const ink = css('--muted'), grid = css('--grid'), old = css('--old'), now = css('--new'), res = css('--res'), all = css('--all'), pale = css('--pale'), lab = css('--lab');
+  const percent = c => `${c.dataset.label} : ${c.parsed.y.toFixed(1)} %`;
+  const line = (label, data, color, dash, width) => ({label, data, borderColor: color, backgroundColor: color, borderDash: dash, borderWidth: width, pointRadius: 0, pointHoverRadius: 4});
   charts = [
     new Chart(document.getElementById('studies'), {type: 'bar',
       data: {labels: studies, datasets: [
-        {label: 'octobre', data: october, backgroundColor: old, borderRadius: 3, maxBarThickness: 12},
-        {label: 'novembre', data: november, backgroundColor: now, borderRadius: 3, maxBarThickness: 12}]},
+        {label: 'audio, octobre', data: october, backgroundColor: old, borderRadius: 3, maxBarThickness: 12, skipNull: true},
+        {label: 'audio, novembre', data: november, backgroundColor: res, borderRadius: 3, maxBarThickness: 12, skipNull: true},
+        {label: 'étiquettes, novembre', data: labelStudies, backgroundColor: lab, borderRadius: 3, maxBarThickness: 12, skipNull: true}]},
       options: {indexAxis: 'y', responsive: true, maintainAspectRatio: false,
         plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => `${c.dataset.label} : ${c.parsed.x.toFixed(2)} %`}}},
         scales: {x: {min: 76, max: 88, title: {display: true, text: 'meilleure exactitude en validation croisée (%)', color: ink}, ticks: {color: ink}, grid: {color: grid}},
                  y: {ticks: {color: ink, font: {size: 11}, autoSkip: false}, grid: {display: false}}}}}),
     new Chart(document.getElementById('ngrams'), {type: 'line',
       data: {labels: orders, datasets: [
-        {label: 'anciennes annotations', data: ngramsOld, borderColor: old, backgroundColor: old, borderDash: [5, 4], borderWidth: 2, pointStyle: 'rect', pointRadius: 4},
-        {label: 'annotations actuelles', data: ngramsNew, borderColor: now, backgroundColor: now, borderWidth: 2, pointRadius: 4},
-        {label: 'réservoir', data: orders.map(() => RESERVOIR), borderColor: res, borderDash: [2, 3], borderWidth: 2, pointRadius: 0}]},
+        {label: 'n-gramme, test', data: ngramsNew, borderColor: now, backgroundColor: now, borderWidth: 2, pointRadius: 4},
+        {label: 'n-gramme, test, anciennes annotations', data: ngramsOld, borderColor: old, backgroundColor: old, borderDash: [5, 4], borderWidth: 2, pointStyle: 'rect', pointRadius: 3},
+        {label: 'n-gramme, tous les chants', data: ngramsAll, borderColor: all, backgroundColor: all, borderDash: [6, 4], borderWidth: 2, pointStyle: 'rect', pointRadius: 4},
+        {label: 'réservoir sur l\'audio, test', data: orders.map(() => RESERVOIR), borderColor: res, borderDash: [2, 3], borderWidth: 2, pointRadius: 0},
+        {label: 'réservoir sur les étiquettes, test', data: orders.map(() => LABEL_RESERVOIR), borderColor: lab, borderDash: [2, 3], borderWidth: 2, pointRadius: 0}]},
       options: {responsive: true, maintainAspectRatio: false,
         plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => `${c.dataset.label} : ${c.parsed.y.toFixed(1)} %`}}},
         scales: {x: {title: {display: true, text: 'ordre du n-gramme', color: ink}, ticks: {color: ink}, grid: {display: false}},
-                 y: {min: 66, max: 88, title: {display: true, text: 'exactitude sur les chants test (%)', color: ink}, ticks: {color: ink}, grid: {color: grid}}}}})];
+                 y: {min: 66, max: 94, title: {display: true, text: 'exactitude (%)', color: ink}, ticks: {color: ink}, grid: {color: grid}}}}}),
+    new Chart(document.getElementById('rank'), {type: 'line',
+      data: {labels: allSongs.map((_, i) => i + 1), datasets: [
+        line('réservoir sur l\'audio, test', rankReservoir, res, [], 3),
+        line('n-gramme adaptatif, test', rankNgram, now, [6, 4], 2),
+        line('n-gramme d\'ordre 10, tous les chants', rankAll[10], pale, [], 2),
+        line('n-gramme d\'ordre 30, tous les chants', rankAll[30], all, [], 3)]},
+      options: {responsive: true, maintainAspectRatio: false, interaction: {mode: 'index', intersect: false},
+        plugins: {legend: {display: false}, tooltip: {callbacks: {
+          title: i => `phrase de rang ${i[0].label} (${testSongs[i[0].dataIndex]} chants test, ${allSongs[i[0].dataIndex]} en tout)`, label: percent}}},
+        scales: {x: {title: {display: true, text: 'rang de la phrase prédite dans le chant (1 = première phrase)', color: ink}, ticks: {color: ink, autoSkip: true, maxTicksLimit: 14}, grid: {display: false}},
+                 y: {min: 0, max: 45, title: {display: true, text: 'erreur (%)', color: ink}, ticks: {color: ink}, grid: {color: grid}}}}})];
 }
 draw();
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
