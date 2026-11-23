@@ -1,9 +1,9 @@
 #!/bin/bash
-# Prediction of the next phrase of canary songs (canopy.next_phrase_prediction.prediction) on PlaFRIM, one job per condition
-# (reservoirs of the next-phrase studies, outputs/canary/studies), then the merge of their results and the paired
+# Prediction of the next phrase of canary songs (canopy.studies.next_phrase.evaluation) on PlaFRIM, one job per condition
+# (reservoirs of the next-phrase studies, outputs/next_phrase/hpo), then the merge of their results and the paired
 # comparisons. Run from the root of a checkout of canopy:
-#   HAG_CANARY_TASK=next_phrase [HAG_CANARY_LEAK=1] bash slurm/submit_next_phrase.sh [sizes] [nb_seeds]   (default 500,1000 and 10 seeds)
-# (HAG_CANARY_READOUT_ORDER=2: the generalized readout; CONSTRAINT: the nodes, default zonda, suroit and bora)
+#   [HAG_CANARY_CALLS=1] [HAG_CANARY_LEAK=1] bash slurm/submit_next_phrase.sh [sizes] [nb_seeds]   (default 500,1000 and 10 seeds)
+# (CONSTRAINT: the nodes, default zonda, suroit and bora)
 set -euo pipefail
 SIZES=${1:-500,1000}
 NB_SEEDS=${2:-10}
@@ -19,8 +19,8 @@ eval "$(micromamba shell hook -s bash)"
 micromamba activate hag_env
 set -u
 TASKS=slurm/tasks/next_phrase_$(date +%Y%m%d_%H%M%S).txt
-HAG_CANARY_STUDIES=$PWD/outputs/canary/studies PYTHONPATH=$PWD:${HAG_DIR:-$HOME/hag_core} \
-    python -m canopy.next_phrase_prediction.prediction list "$SIZES" 2>/dev/null | grep -E "^[^ ]+ [0-9]+$" > "$TASKS"
+PYTHONPATH=$PWD:${HAG_DIR:-$HOME/hag_core} \
+    python -m canopy.studies.next_phrase.evaluation list "$SIZES" 2>/dev/null | grep -E "^[^ ]+ [0-9]+$" > "$TASKS"
 n=$(wc -l < "$TASKS")
 
 array=$(sbatch --parsable "${NODES[@]}" --array=0-$((n - 1))%$MAX_RUNNING --time=1-00:00:00 \

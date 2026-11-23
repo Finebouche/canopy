@@ -1,7 +1,6 @@
 """
-Songs of the canary tasks (canopy.next_phrase_prediction, canopy.syllables_classification): MFCC features of the songs
-of canopy.datasets.songs.load_songs (cached in FEATURES_CACHE, with their train/test split and their phrases) and HAG
-pretraining phrases.
+Songs of the canary tasks (canopy.tasks): MFCC features of the songs of canopy.datasets.songs.load_songs (cached in
+FEATURES_CACHE, with their train/test split and their phrases) and HAG pretraining phrases.
 """
 from pathlib import Path
 
@@ -14,7 +13,7 @@ from hag.datasets.preprocessing import scale_data
 
 RIDGES = 10.0 ** np.arange(-14, 3)
 NB_PRETRAIN_PHRASES = 500
-OUTPUTS = Path(__file__).resolve().parents[1] / "outputs" / "canary"
+OUTPUTS = Path(__file__).resolve().parents[1] / "outputs"  # (one folder per study, canopy.settings.outputs_dir)
 FEATURES_CACHE = CANARY_DIR / f"boundary_features_{SONGS_SAMPLING_RATE}.pkl"
 # MFCC without the floor at 80 dB below the maximum of the whole song (load_dataset(top_db=None))
 NO_FLOOR_FEATURES_CACHE = FEATURES_CACHE.with_name(f"boundary_features_{SONGS_SAMPLING_RATE}_no_floor.pkl")

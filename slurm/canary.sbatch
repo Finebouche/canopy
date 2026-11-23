@@ -1,24 +1,22 @@
 #!/bin/bash
-# Canary songs on PlaFRIM (canopy.next_phrase_prediction: boundaries and next phrase; canopy.syllables_classification), from a
-# checkout of canopy:
-#   - HAG_CANARY_MODE=hpo (default): hyperparameter optimization python -m canopy.next_phrase_prediction.hpo <model> <size>
-#     (python -m canopy.syllables_classification.hpo with HAG_CANARY_TASK=syllables), HAG_CANARY_WORKERS processes sharing
-#     the cores; in a job array, "<model> <size>" is the line SLURM_ARRAY_TASK_ID (from 0) of the file HAG_CANARY_TASKS;
-#   - HAG_CANARY_MODE=evaluate: final evaluation python -m canopy.next_phrase_prediction.evaluate [sizes] [nb_seeds];
-#   - HAG_CANARY_MODE=syllables: frame-by-frame syllable classification python -m
-#     canopy.syllables_classification.classification [sizes] [nb_seeds] (reservoirs of the syllable studies);
-#   - HAG_CANARY_MODE=next_phrase: prediction of the next phrase python -m canopy.next_phrase_prediction.prediction [sizes]
-#     [nb_seeds] (reservoirs of the next-phrase studies, HAG_CANARY_TASK=next_phrase);
-#   - HAG_CANARY_MODE=readout_rules: learning rules of the readout of the next phrase python -m
-#     canopy.next_phrase_prediction.readout_rules (slurm/submit_readout_rules.sh);
-#   - HAG_CANARY_MODE=monomial_selection: selection of the monomials of the readout of order 2 python -m
-#     canopy.next_phrase_prediction.monomial_selection (slurm/submit_monomial_selection.sh), and
-#     HAG_CANARY_MODE=monomial_selection_rules: the online rules on the selected monomials (the same script, MODULE);
-#   - HAG_CANARY_MODE=certainty: certainty along the phrases python -m canopy.syllables_classification.certainty [size]
-#     [conditions] [nb_seeds] (canopy.next_phrase_prediction.certainty with HAG_CANARY_TASK=next_phrase).
+# Canary songs on PlaFRIM (the studies of canopy.studies), from a checkout of canopy:
+#   - HAG_CANARY_MODE=hpo (default): study of the reservoirs python -m canopy.studies.<study>.study <model> <size>, the
+#     study given by HAG_CANARY_TASK (boundaries, default: phrase_boundaries; next_phrase; syllables:
+#     syllables_classification),
+#     HAG_CANARY_WORKERS processes sharing the cores; in a job array, "<model> <size>" is the line SLURM_ARRAY_TASK_ID
+#     (from 0) of the file HAG_CANARY_TASKS, optionally followed by variables KEY=VALUE of the study;
+#   - HAG_CANARY_MODE=evaluate: final evaluation of the boundaries python -m
+#     canopy.studies.phrase_boundaries.evaluation [sizes] [nb_seeds];
+#   - HAG_CANARY_MODE=next_phrase: python -m canopy.studies.next_phrase.evaluation [sizes] [nb_seeds] (in a job
+#     array: one condition, "<condition> <size>" of HAG_CANARY_TASKS; slurm/submit_next_phrase.sh);
+#   - HAG_CANARY_MODE=syllables: python -m canopy.studies.syllables_classification.evaluation (the same;
+#     slurm/submit_syllables.sh);
+#   - HAG_CANARY_MODE=certainty: certainty along the phrases python -m
+#     canopy.studies.syllables_classification.certainty [size] [conditions] [nb_seeds]
+#     (canopy.studies.next_phrase.certainty with HAG_CANARY_TASK=next_phrase).
 # The Optuna databases are in /dev/shm during the job (SQLite does not support the network file systems well, and the
-# suroit nodes have no local disk), copied from and back to outputs/canary/studies (every 10 minutes and at the
-# end, without replacing more recent files). Submit everything with slurm/submit_canary.sh.
+# suroit nodes have no local disk), copied from and back to outputs/<study>/hpo, the study of HAG_CANARY_TASK (every
+# 10 minutes and at the end, without replacing more recent files). Submit everything with slurm/submit_canary.sh.
 #SBATCH --job-name=canary
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -30,17 +28,8 @@
 set -euo pipefail
 if [ -n "${HAG_CANARY_TASKS:-}" ] && [ -n "${SLURM_ARRAY_TASK_ID:-}" ]; then
     read -r MODEL SIZE EXTRA < <(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" "$HAG_CANARY_TASKS")
-    if [[ "$EXTRA" == *=* ]]; then
-        # (optional fields KEY=VALUE: variables of the study, e.g. slurm/submit_hpo_rules.sh)
-        for assignment in $EXTRA; do export "$assignment"; done
-    elif [ -n "$EXTRA" ]; then
-        # (optional third and fourth fields: the readout of the study and the leak, slurm/submit_hpo_readouts.sh)
-        read -r READOUT LEAK <<< "$EXTRA"
-        export HAG_CANARY_HPO_READOUT=$READOUT HAG_CANARY_LEAK=$LEAK
-        # (training rows "all": all the states of the phrases, ~1 million rows, ~9 GB at 1000 neurons, more memory per
-        # worker)
-        case "$READOUT" in all:*) export HAG_CANARY_WORKER_MEM=${HAG_CANARY_WORKER_MEM_ALL:-28} ;; esac
-    fi
+    # (optional fields KEY=VALUE: variables of the study, e.g. HAG_CANARY_LEAK=1)
+    for assignment in $EXTRA; do export "$assignment"; done
     set -- "$MODEL" "$SIZE" "$@"
 fi
 set +u
@@ -72,7 +61,14 @@ export XLA_FLAGS="--xla_cpu_multi_thread_eigen=false intra_op_parallelism_thread
 # numba cache of librosa per job: the jobs writing it at the same time in the shared environment fail (stale file handle)
 export NUMBA_CACHE_DIR=/dev/shm/numba_cache_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID:-0}
 
-STUDIES=$PWD/outputs/canary/studies
+case "${HAG_CANARY_TASK:-boundaries}" in  # (the folder of the study, canopy.settings.outputs_dir)
+    boundaries) STUDY=phrase_boundaries ;;
+    syllables) STUDY=syllables_classification ;;
+    *) STUDY=$HAG_CANARY_TASK ;;
+esac
+case "${HAG_CANARY_MODE:-hpo}" in evaluate) STUDY=phrase_boundaries ;; next_phrase) STUDY=next_phrase ;;
+    syllables) STUDY=syllables_classification ;; esac
+STUDIES=$PWD/outputs/$STUDY/hpo
 export HAG_CANARY_STUDIES=/dev/shm/hag_canary_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID:-0}
 mkdir -p "$STUDIES" "$HAG_CANARY_STUDIES" slurm/logs
 rsync -a "$STUDIES/" "$HAG_CANARY_STUDIES/"
@@ -83,30 +79,22 @@ trap 'exit 143' TERM
 
 echo "[slurm] job ${SLURM_JOB_ID} ${SLURM_ARRAY_TASK_ID:-}: ${HAG_CANARY_MODE:-hpo} $*, on $(hostname)," \
     "$CPUS cores, $WORKERS workers"
-if [ "${HAG_CANARY_MODE:-hpo}" = evaluate ]; then
-    python -m canopy.next_phrase_prediction.evaluate "$@"
-elif [ "${HAG_CANARY_MODE:-hpo}" = certainty ]; then
-    if [ "${HAG_CANARY_TASK:-}" = next_phrase ]; then
-        python -m canopy.next_phrase_prediction.certainty "$@"
-    else
-        python -m canopy.syllables_classification.certainty "$@"
-    fi
-elif [ "${HAG_CANARY_MODE:-hpo}" = syllables ]; then
-    # in a job array: one condition ("<condition> <size>" of HAG_CANARY_TASKS)
-    if [ -n "${HAG_CANARY_TASKS:-}" ]; then set -- run "$@"; fi
-    python -m canopy.syllables_classification.classification "$@"
-elif [ "${HAG_CANARY_MODE:-hpo}" = next_phrase ]; then
-    # in a job array: one condition ("<condition> <size>" of HAG_CANARY_TASKS)
-    if [ -n "${HAG_CANARY_TASKS:-}" ]; then set -- run "$@"; fi
-    python -m canopy.next_phrase_prediction.prediction "$@"
-elif [ "${HAG_CANARY_MODE:-hpo}" = readout_rules ]; then
-    if [ -n "${HAG_CANARY_TASKS:-}" ]; then set -- run "$@"; fi
-    python -m canopy.next_phrase_prediction.readout_rules "$@"
-elif [ "${HAG_CANARY_MODE:-hpo}" = monomial_selection ] || [ "${HAG_CANARY_MODE:-hpo}" = monomial_selection_rules ]; then
-    if [ -n "${HAG_CANARY_TASKS:-}" ]; then set -- run "$@"; fi
-    python -m "canopy.next_phrase_prediction.$HAG_CANARY_MODE" "$@"
-elif [ "${HAG_CANARY_TASK:-}" = syllables ]; then
-    python -m canopy.syllables_classification.hpo "$@"
-else
-    python -m canopy.next_phrase_prediction.hpo "$@"
-fi
+case "${HAG_CANARY_MODE:-hpo}" in
+    evaluate) python -m canopy.studies.phrase_boundaries.evaluation "$@" ;;
+    next_phrase|syllables)
+        # in a job array: one condition ("<condition> <size>" of HAG_CANARY_TASKS)
+        if [ -n "${HAG_CANARY_TASKS:-}" ]; then set -- run "$@"; fi
+        case "$HAG_CANARY_MODE" in
+            next_phrase) python -m canopy.studies.next_phrase.evaluation "$@" ;;
+            syllables) python -m canopy.studies.syllables_classification.evaluation "$@" ;;
+        esac ;;
+    certainty)
+        if [ "${HAG_CANARY_TASK:-}" = next_phrase ]; then python -m canopy.studies.next_phrase.certainty "$@"
+        else python -m canopy.studies.syllables_classification.certainty "$@"; fi ;;
+    hpo)
+        case "${HAG_CANARY_TASK:-boundaries}" in
+            boundaries|next_phrase|syllables) python -m "canopy.studies.$STUDY.study" "$@" ;;
+            *) echo "unknown HAG_CANARY_TASK=$HAG_CANARY_TASK" >&2; exit 1 ;;
+        esac ;;
+    *) echo "unknown HAG_CANARY_MODE=$HAG_CANARY_MODE" >&2; exit 1 ;;
+esac

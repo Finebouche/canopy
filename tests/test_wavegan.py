@@ -1,8 +1,8 @@
-import numpy as np  # (before torch, as in canopy.syllable_generation.wavegan)
+import numpy as np  # (before torch, as in canopy.studies.syllable_generation.wavegan)
 import torch
 
-from canopy.syllable_generation.syllables import SLICE_LENGTH, padded, syllable_bounds
-from canopy.syllable_generation.wavegan import (BATCH_SIZE, LATENT_DIM, Critic, Generator, PhaseShuffle,
+from canopy.studies.syllable_generation.syllables import SLICE_LENGTH, padded, syllable_bounds
+from canopy.studies.syllable_generation.wavegan import (BATCH_SIZE, LATENT_DIM, Critic, Generator, PhaseShuffle,
                                                 gradient_penalty, latent)
 
 
@@ -52,7 +52,7 @@ def test_training_step_runs():
 
 
 def test_auditory_activation_and_hebbian_learning():
-    from canopy.syllable_generation.sensorimotor import HALF_SECOND, auditory_activation, learn
+    from canopy.studies.syllable_generation.sensorimotor import HALF_SECOND, auditory_activation, learn
     classes = ["B", "A", "X"]
     raw = np.zeros((1, HALF_SECOND + 10, 3))
     raw[0, 5] = [0.5, 0.005, 0.2]  # (the frame of the largest output: A below the floor)

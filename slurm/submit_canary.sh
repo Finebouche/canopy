@@ -1,9 +1,10 @@
 #!/bin/bash
-# Full canary boundary detection experiment (canopy.next_phrase_prediction), run from the root of a checkout of canopy:
+# Full canary experiment (default: the phrase boundaries, canopy.studies.phrase_boundaries.study and
+# canopy.studies.phrase_boundaries.evaluation), run from the root of a checkout of canopy:
 #   1. optimization of the pure models (canopy.models.reservoirs.PURE_MODELS) at each size of SIZES, job array;
 #   2. final evaluation with NB_SEEDS seeds and the paired comparisons (after 1), the hybrids <hag>+<esn> of each size
 #      combining the parts optimized alone at half the size (they are not optimized).
-# canopy.next_phrase_prediction.hpo.N_TRIALS trials per study (Optuna, TPE). With HAG_CANARY_TASK=syllables, the studies optimize
+# HAG_CANARY_N_TRIALS trials per study (Optuna, TPE; canopy.settings). With HAG_CANARY_TASK=syllables, the studies optimize
 # the frame accuracy of the syllable classification ("syllables_<model>_<size>") and the final evaluation is
 # slurm/submit_syllables.sh.
 # With HAG_CANARY_TASK=next_phrase, they optimize the accuracy of the prediction of the next phrase
@@ -20,7 +21,7 @@ read -r -a SIZES <<< "${SIZES:-250 500 1000}"
 read -r -a PURE <<< "${PURE:-mean_hag var_hag random_ee random_ee_dense}"
 NODES=(--constraint="zen4|zen3|zonda" --exclude="sirocco[21-25],enbata[01-02]")
 cd "$(dirname "$0")/.."
-mkdir -p slurm/logs slurm/tasks outputs/canary/studies
+mkdir -p slurm/logs slurm/tasks
 
 # the MFCC caches, once, before the jobs (canopy/datasets/marron1/boundary_features_44100.pkl, and ..._no_floor.pkl of the
 # next-phrase prediction)

@@ -3,7 +3,7 @@ from hag.models.activation_functions import tanh
 from hag.performances.esn_model_evaluation import init_reservoir
 
 from canopy.models.reservoirs import states
-from canopy.song_generation.generator import (END, START, RecordedVoice, WorkingMemory, advance, choose, jax_nodes,
+from canopy.studies.song_generation.generator import (END, START, RecordedVoice, WorkingMemory, advance, choose, jax_nodes,
                                               markov_songs, ngrams, total_variation)
 
 

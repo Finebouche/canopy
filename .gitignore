@@ -17,14 +17,13 @@ CLAUDE.md
 /canopy/datasets/marron1/*
 !/canopy/datasets/marron1/annotations/
 
-# outputs/canary: Optuna databases and parts of the jobs (only the result CSVs are tracked)
-/outputs/canary/studies/
-/outputs/canary/*_parts/
-/outputs/canary/*/studies/
-/outputs/canary/*/*_parts/
+# outputs/<study>: Optuna databases and parts of the jobs (only the result CSVs are tracked)
+/outputs/*/hpo/
+/outputs/*/*/*_parts/
+/outputs/*/*/studies/
 # GAN of the syllables: checkpoints (only the losses are tracked)
-/outputs/canary/syllable_gan/*/checkpoints/
-/outputs/canary/syllable_gan/*/last.pt
+/outputs/syllable_generation/*/checkpoints/
+/outputs/syllable_generation/*/last.pt
 
 # Slurm logs and task lists of the jobs
 /slurm/logs/

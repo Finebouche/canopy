@@ -1,6 +1,6 @@
 #!/bin/bash
-# Frame-by-frame syllable classification of canary songs (canopy.syllables_classification.classification) on PlaFRIM, one job per condition
-# (reservoirs of the detection studies, outputs/canary/studies), then the merge of their results and the paired
+# Frame-by-frame syllable classification of canary songs (canopy.studies.syllables_classification.evaluation) on PlaFRIM, one job per condition
+# (reservoirs of the syllable studies, outputs/syllables_classification/hpo), then the merge of their results and the paired
 # comparisons. Run from the root of a checkout of canopy:
 #   bash slurm/submit_syllables.sh [sizes] [nb_seeds]   (default 250,500,1000 and 10 seeds)
 set -euo pipefail
@@ -18,8 +18,8 @@ eval "$(micromamba shell hook -s bash)"
 micromamba activate hag_env
 set -u
 TASKS=slurm/tasks/syllables_$(date +%Y%m%d_%H%M%S).txt
-HAG_CANARY_STUDIES=$PWD/outputs/canary/studies PYTHONPATH=$PWD:${HAG_DIR:-$HOME/hag_core} \
-    python -m canopy.syllables_classification.classification list "$SIZES" 2>/dev/null | grep -E "^[^ ]+ [0-9]+$" > "$TASKS"
+PYTHONPATH=$PWD:${HAG_DIR:-$HOME/hag_core} \
+    python -m canopy.studies.syllables_classification.evaluation list "$SIZES" 2>/dev/null | grep -E "^[^ ]+ [0-9]+$" > "$TASKS"
 n=$(wc -l < "$TASKS")
 
 array=$(sbatch --parsable "${NODES[@]}" --array=0-$((n - 1))%$MAX_RUNNING --time=1-00:00:00 \
