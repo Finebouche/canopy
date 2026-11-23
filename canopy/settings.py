@@ -7,16 +7,17 @@ their names, their storage, the cross-validation.
   HAG_CANARY_RESET=1: the reservoirs hear the current phrase only, from a zero state (next phrase; "next_phrase_reset_");
   HAG_CANARY_INPUT_GAINS=1: the gain of each group of input features in the search (syllables; "syllables_gains_");
   HAG_CANARY_N_TRIALS: trials of a study (400); HAG_CANARY_WORKERS: processes optimizing a study (1);
-  HAG_CANARY_STUDIES: directory of the Optuna databases, one SQLite file each (default: that of each study,
-    outputs/<study>/hpo; slurm/canary.sbatch sets it to a folder of /dev/shm during a job);
+  HAG_CANARY_STUDIES: folder of the Optuna database of a job (set by slurm/canary.sbatch, in /dev/shm during the job);
+    without it, the database of the dataset of each study, outputs/<study>/hpo/marron1_db.sqlite3;
   HAG_CANARY_RIDGE_SOLVER: solver of reservoirpy's Ridge, the readout of the next phrase ("svd": the singular value
     decomposition of the centered states, stable with the smallest coefficients).
 (HAG_CANARY_TASK: the study optimized by slurm/canary.sbatch, "boundaries", "next_phrase" or "syllables"; the scripts
 of the studies do not read it.)
 
 The studies of canopy.studies ("phrase_boundaries", "next_phrase", "syllables_classification") write in one folder each,
-outputs/<study> (outputs_dir): hpo/ (the Optuna databases of the reservoirs, studies_dir), performances/ (the results of
-the final evaluations), analysis/; the generations, in outputs/syllable_generation and outputs/song_generation.
+outputs/<study> (outputs_dir): hpo/ (one Optuna database per dataset with all the Optuna studies of the reservoirs,
+database), performances/ (the results of the final evaluations), analysis/, figures/; the generations, in
+outputs/syllable_generation and outputs/song_generation.
 Optuna studies: PREFIXES[study] + "<model>_<size>" (study_name): the phrase boundaries without prefix,
 "next_phrase_[calls_][reset_][leak_]" and "syllables_[gains_][leak_]".
 """
@@ -31,8 +32,11 @@ RESET = os.environ.get("HAG_CANARY_RESET") == "1"
 INPUT_GAINS = os.environ.get("HAG_CANARY_INPUT_GAINS") == "1"
 N_TRIALS = int(os.environ.get("HAG_CANARY_N_TRIALS", 400))
 WORKERS = int(os.environ.get("HAG_CANARY_WORKERS", 1))
-STUDIES_DIR = os.environ.get("HAG_CANARY_STUDIES")
+JOB_STUDIES = os.environ.get("HAG_CANARY_STUDIES")
 RIDGE_SOLVER = os.environ.get("HAG_CANARY_RIDGE_SOLVER", "svd")
+
+DATASET_NAME = "marron1"
+DATABASE_NAME = f"{DATASET_NAME}_db.sqlite3"
 
 N_FOLDS = 3  # (cross-validation by song on the train songs)
 FOLD_SEED = 0
@@ -53,6 +57,11 @@ def outputs_dir(study, kind=None):
     return OUTPUTS / study / kind if kind else OUTPUTS / study
 
 
-def studies_dir(study):
-    """Folder of the Optuna databases of a study: HAG_CANARY_STUDIES if set, else outputs/<study>/hpo."""
-    return Path(STUDIES_DIR) if STUDIES_DIR else outputs_dir(study, "hpo")
+def database(study):
+    """Optuna database of the dataset for a study: outputs/<study>/hpo/<dataset>_db.sqlite3, all its Optuna studies."""
+    return outputs_dir(study, "hpo") / DATABASE_NAME
+
+
+def studies_database(study):
+    """Optuna database read and written: that of the job (HAG_CANARY_STUDIES) if set, else that of the dataset."""
+    return Path(JOB_STUDIES) / DATABASE_NAME if JOB_STUDIES else database(study)

@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Phrase suivante : effet des annotations corrigées</title>
+<style>
+:root{--bg:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--old:#888780;--new:#2a78d6;--res:#eb6834}
+@media (prefers-color-scheme: dark){:root{--bg:#151515;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--old:#888780;--new:#3987e5;--res:#d95926}}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif}
+main{max-width:1240px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:22px;font-weight:500;margin:0 0 4px}
+h2{font-size:17px;font-weight:500;margin:36px 0 4px}
+p{margin:6px 0;color:var(--ink2)}
+.legend{display:flex;flex-wrap:wrap;gap:16px;margin:10px 0 6px;font-size:13px;color:var(--ink2)}
+.legend span{display:flex;align-items:center;gap:6px}
+.sq{width:10px;height:10px;border-radius:2px}
+.ln{width:18px;height:0;border-top:2px solid}
+.box{position:relative;width:100%}
+code{font-size:13px}
+.row{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(280px,1fr);gap:32px;align-items:start}
+@media (max-width:900px){.row{grid-template-columns:minmax(0,1fr)}}
+figure{margin:0}
+figcaption{font-size:14px;font-weight:500;color:var(--ink);margin:0 0 2px}
+figure p{font-size:13px}
+svg.model{display:block;width:100%;max-width:360px;height:auto;margin-top:6px}
+.s-box{fill:none;stroke:var(--ink2);stroke-width:1.2}
+.s-fill{fill:var(--grid);stroke:none}
+.s-out{fill:none;stroke:var(--new);stroke-width:1.8}
+.s-dash{fill:none;stroke:var(--ink2);stroke-width:1.2;stroke-dasharray:4 3}
+.s-line{fill:none;stroke:var(--ink2);stroke-width:1.2}
+.s-thin{fill:none;stroke:var(--muted);stroke-width:1}
+.s-node{fill:var(--bg);stroke:var(--ink2);stroke-width:1.2}
+.s-head{fill:var(--ink2)}
+.s-t{fill:var(--ink);font-size:12.5px;text-anchor:middle}
+.s-m{fill:var(--muted);font-size:11.5px;text-anchor:middle}
+.s-bar{fill:var(--old)}.s-best{fill:var(--new)}
+</style>
+</head>
+<body>
+<main>
+<h1>Phrase suivante : effet des annotations corrigées</h1>
+<p>marron1, avec les calls comme phrases. Les annotations ont été corrigées le 3 novembre 2026 (21 phrases) puis le 7 novembre (41 segments). Les études et les n-grammes ont été refaits ensuite.</p>
+
+<h2>Les études des réservoirs changent peu entre octobre et novembre</h2>
+<p>Meilleure exactitude en validation croisée de chaque étude ridge (« last » → « last », 400 essais). Octobre : <code>outputs/next_phrase/hpo/marron1_before_annotation_relabels_db.sqlite3</code>. Novembre : <code>outputs/next_phrase/hpo/marron1_db.sqlite3</code>.</p>
+<div class="row">
+<div>
+<div class="legend">
+<span><span class="sq" style="background:var(--old)"></span>26 et 27 octobre, anciennes annotations</span>
+<span><span class="sq" style="background:var(--new)"></span>10 et 11 novembre, annotations actuelles</span>
+</div>
+<div class="box" style="height:420px"><canvas id="studies" role="img" aria-label="Meilleure exactitude en validation croisée des 16 études, octobre et novembre">Avec fuite, random_ei 1000 : 86,55 % puis 86,87 %. Sans fuite, var_hag 1000 : 83,80 % puis 85,45 %.</canvas></div>
+</div>
+<figure>
+<figcaption>Modèle 1 : un réservoir et un readout ridge</figcaption>
+<p>Le réservoir écoute tout le chant. À la fin de chaque phrase, le readout lit son état et prédit la phrase suivante.</p>
+<svg class="model" viewBox="0 0 340 436" role="img" aria-label="Schéma : l'audio du chant donne 13 MFCC par trame, lus par un réservoir de 500 ou 1 000 neurones ; à la fin de chaque phrase, un readout ridge lit l'état du réservoir et donne la phrase suivante parmi 29 classes">
+<defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="s-head" d="M0 0L10 5L0 10z"/></marker></defs>
+<rect class="s-fill" x="14" y="12" width="72" height="26" rx="4"/><rect class="s-fill" x="90" y="12" width="72" height="26" rx="4"/><rect class="s-fill" x="166" y="12" width="72" height="26" rx="4"/>
+<rect class="s-dash" x="246" y="12" width="72" height="26" rx="4"/>
+<text class="s-t" x="50" y="29">J1</text><text class="s-t" x="126" y="29">J2</text><text class="s-t" x="202" y="29">B1</text><text class="s-t" x="282" y="29">?</text>
+<line class="s-out" x1="242" y1="6" x2="242" y2="44"/>
+<text class="s-m" x="170" y="58">phrases du chant ; trait bleu : fin de la phrase B1</text>
+<line class="s-line" x1="170" y1="66" x2="170" y2="84" marker-end="url(#ah)"/>
+<rect class="s-box" x="70" y="86" width="200" height="32" rx="6"/><text class="s-t" x="170" y="106">13 MFCC par trame de l'audio</text>
+<line class="s-line" x1="170" y1="118" x2="170" y2="138" marker-end="url(#ah)"/>
+<rect class="s-box" x="50" y="140" width="240" height="112" rx="14"/>
+<path class="s-thin" d="M92 172L140 160M140 160L196 176M196 176L246 164M92 172L118 214M118 214L170 204M170 204L196 176M170 204L226 220M226 220L246 164M140 160L170 204M118 214L92 172"/>
+<path class="s-thin" d="M246 164c22 -18 22 18 0 6" marker-end="url(#ah)"/>
+<circle class="s-node" cx="92" cy="172" r="7"/><circle class="s-node" cx="140" cy="160" r="7"/><circle class="s-node" cx="196" cy="176" r="7"/><circle class="s-node" cx="246" cy="164" r="7"/><circle class="s-node" cx="118" cy="214" r="7"/><circle class="s-node" cx="170" cy="204" r="7"/><circle class="s-node" cx="226" cy="220" r="7"/>
+<text class="s-m" x="170" y="244">réservoir : 500 ou 1 000 neurones récurrents</text>
+<line class="s-line" x1="170" y1="252" x2="170" y2="272" marker-end="url(#ah)"/>
+<rect class="s-box" x="70" y="274" width="200" height="32" rx="6"/><text class="s-t" x="170" y="294">état à la fin de la phrase</text>
+<line class="s-line" x1="170" y1="306" x2="170" y2="326" marker-end="url(#ah)"/>
+<rect class="s-box" x="70" y="328" width="200" height="32" rx="6"/><text class="s-t" x="170" y="348">readout linéaire (ridge)</text>
+<line class="s-line" x1="170" y1="360" x2="170" y2="380" marker-end="url(#ah)"/>
+<rect class="s-out" x="50" y="382" width="240" height="44" rx="6"/><text class="s-t" x="170" y="400">phrase suivante</text><text class="s-m" x="170" y="416">29 classes : les phrases, call et END</text>
+</svg>
+</figure>
+</div>
+
+<h2>Les n-grammes gagnent 0,5 à 2,4 points avec les annotations actuelles</h2>
+<p>Exactitude sur les 92 chants test des n-grammes des étiquettes des phrases précédentes (<code>outputs/next_phrase/performances/next_phrase_calls_ngrams.csv</code>), et celle du réservoir random_ei à 1 000 neurones avec fuite (10 graines).</p>
+<div class="row">
+<div>
+<div class="legend">
+<span><span class="ln" style="border-top-style:dashed;border-color:var(--old)"></span>3 novembre, anciennes annotations</span>
+<span><span class="ln" style="border-color:var(--new)"></span>annotations actuelles</span>
+<span><span class="ln" style="border-top-style:dotted;border-color:var(--res)"></span>réservoir random_ei 1000 avec fuite (86,1 %)</span>
+</div>
+<div class="box" style="height:320px"><canvas id="ngrams" role="img" aria-label="Exactitude des n-grammes selon l'ordre, avant et après la correction des annotations">Ordre 5 : 76,09 % puis 77,45 %. Adaptatif : 77,14 % puis 77,98 %. Réservoir : 86,1 %.</canvas></div>
+</div>
+<figure>
+<figcaption>Modèle 2 : un n-gramme des étiquettes</figcaption>
+<p>Le n-gramme ne lit pas l'audio. Il lit les vraies étiquettes des n phrases précédentes et donne la suite la plus fréquente dans les chants d'entraînement.</p>
+<svg class="model" viewBox="0 0 340 318" role="img" aria-label="Schéma : les n dernières étiquettes forment un contexte ; le n-gramme compte les phrases qui suivent ce contexte dans les chants d'entraînement et donne la plus fréquente">
+<rect class="s-fill" x="14" y="12" width="72" height="26" rx="4"/><rect class="s-fill" x="90" y="12" width="72" height="26" rx="4"/><rect class="s-fill" x="166" y="12" width="72" height="26" rx="4"/>
+<rect class="s-dash" x="246" y="12" width="72" height="26" rx="4"/>
+<text class="s-t" x="50" y="29">J1</text><text class="s-t" x="126" y="29">J2</text><text class="s-t" x="202" y="29">B1</text><text class="s-t" x="282" y="29">?</text>
+<path class="s-line" d="M90 46v6h148v-6"/>
+<text class="s-m" x="164" y="68">contexte : les n dernières étiquettes (ici n = 2)</text>
+<line class="s-line" x1="164" y1="76" x2="164" y2="96" marker-end="url(#ah)"/>
+<rect class="s-box" x="30" y="98" width="280" height="120" rx="6"/>
+<text class="s-m" x="170" y="116">suites de « J2 B1 » dans les chants d'entraînement</text>
+<text class="s-t" x="62" y="142" style="text-anchor:end">B2</text><rect class="s-best" x="72" y="131" width="190" height="14" rx="3"/>
+<text class="s-t" x="62" y="168" style="text-anchor:end">Q</text><rect class="s-bar" x="72" y="157" width="52" height="14" rx="3"/>
+<text class="s-t" x="62" y="194" style="text-anchor:end">END</text><rect class="s-bar" x="72" y="183" width="18" height="14" rx="3"/>
+<text class="s-m" x="170" y="212">barres : nombres d'occurrences (exemple fictif)</text>
+<line class="s-line" x1="170" y1="218" x2="170" y2="238" marker-end="url(#ah)"/>
+<rect class="s-out" x="50" y="240" width="240" height="32" rx="6"/><text class="s-t" x="170" y="260">phrase suivante : la plus fréquente</text>
+<text class="s-m" x="170" y="292">adaptatif : le plus long contexte déjà vu,</text><text class="s-m" x="170" y="307">jusqu'à 10 étiquettes</text>
+</svg>
+</figure>
+</div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const css = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const models = ['mean_hag 500', 'mean_hag 1000', 'var_hag 500', 'var_hag 1000', 'random_ee 500', 'random_ee 1000', 'random_ei 500', 'random_ei 1000'];
+const studies = [...models.map(m => 'fuite · ' + m), ...models.map(m => 'sans fuite · ' + m)];
+// best cross-validation accuracy (%) of each study: October (old annotations), November (current annotations)
+const october = [85.26, 85.83, 85.53, 86.33, 85.54, 86.30, 85.90, 86.55, 83.75, 84.39, 83.31, 83.80, 78.84, 81.19, 81.64, 83.57];
+const november = [85.63, 86.00, 85.54, 86.37, 85.79, 86.62, 86.13, 86.87, 83.58, 84.35, 83.10, 85.45, 78.85, 81.16, 82.09, 83.85];
+// test accuracy (%) of the n-grams, orders 1 to 10 then adaptive
+const orders = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '', 'adaptatif'];  // ('': a gap before the adaptive one)
+const ngramsOld = [74.21, 75.53, 75.60, 75.38, 76.09, 74.74, 73.65, 71.55, 69.59, 67.08, null, 77.14];
+const ngramsNew = [74.72, 76.22, 76.40, 76.52, 77.45, 76.29, 75.39, 73.63, 71.76, 69.44, null, 77.98];
+const RESERVOIR = 86.1;
+let charts = [];
+function draw() {
+  charts.forEach(c => c.destroy());
+  const ink = css('--muted'), grid = css('--grid'), old = css('--old'), now = css('--new'), res = css('--res');
+  const tip = unit => ({callbacks: {label: c => `${c.dataset.label} : ${(c.parsed.x ?? c.parsed.y).toFixed(2)} ${unit}`}});
+  charts = [
+    new Chart(document.getElementById('studies'), {type: 'bar',
+      data: {labels: studies, datasets: [
+        {label: 'octobre', data: october, backgroundColor: old, borderRadius: 3, maxBarThickness: 12},
+        {label: 'novembre', data: november, backgroundColor: now, borderRadius: 3, maxBarThickness: 12}]},
+      options: {indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+        plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => `${c.dataset.label} : ${c.parsed.x.toFixed(2)} %`}}},
+        scales: {x: {min: 76, max: 88, title: {display: true, text: 'meilleure exactitude en validation croisée (%)', color: ink}, ticks: {color: ink}, grid: {color: grid}},
+                 y: {ticks: {color: ink, font: {size: 11}, autoSkip: false}, grid: {display: false}}}}}),
+    new Chart(document.getElementById('ngrams'), {type: 'line',
+      data: {labels: orders, datasets: [
+        {label: 'anciennes annotations', data: ngramsOld, borderColor: old, backgroundColor: old, borderDash: [5, 4], borderWidth: 2, pointStyle: 'rect', pointRadius: 4},
+        {label: 'annotations actuelles', data: ngramsNew, borderColor: now, backgroundColor: now, borderWidth: 2, pointRadius: 4},
+        {label: 'réservoir', data: orders.map(() => RESERVOIR), borderColor: res, borderDash: [2, 3], borderWidth: 2, pointRadius: 0}]},
+      options: {responsive: true, maintainAspectRatio: false,
+        plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => `${c.dataset.label} : ${c.parsed.y.toFixed(1)} %`}}},
+        scales: {x: {title: {display: true, text: 'ordre du n-gramme', color: ink}, ticks: {color: ink}, grid: {display: false}},
+                 y: {min: 66, max: 88, title: {display: true, text: 'exactitude sur les chants test (%)', color: ink}, ticks: {color: ink}, grid: {color: grid}}}}})];
+}
+draw();
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
+</script>
+</body>
+</html>

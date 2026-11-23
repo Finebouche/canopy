@@ -11,7 +11,7 @@ Six campagnes (octobre 2026), code du commit `fbfa8a0` de la branche `canary` : 
 Fichiers :
 - `*_hpo.csv` : résultats de test par condition et par graine ;
 - `*_hpo_comparisons.csv` : comparaisons appariées ;
-- `studies/` : les 72 études Optuna (non suivies par git) ;
+- `hpo/marron1_db.sqlite3` : les 72 études Optuna (Git LFS) ;
 - `*_hpo_parts/` : sur PlaFRIM seulement.
 
 ## Protocole

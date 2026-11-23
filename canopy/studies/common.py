@@ -1,8 +1,13 @@
 """
 Shared parts of the studies of canopy.studies (phrase_boundaries, next_phrase, syllables_classification):
 
-  - storage of the Optuna studies of the reservoirs: one SQLite database each in the folder of its study,
-    outputs/<study>/hpo (canopy.settings.studies_dir), its name canopy.settings.study_name;
+  - storage of the Optuna studies of the reservoirs, as in hag and bachue: all those of a study and of a dataset in one
+    SQLite database, outputs/<study>/hpo/marron1_db.sqlite3 (canopy.settings.database), their names
+    canopy.settings.study_name. Several jobs writing the same SQLite file would corrupt it: a job (slurm/canary.sbatch)
+    optimizes its Optuna study in a database of its own (HAG_CANARY_STUDIES, in /dev/shm during the job, copied back
+    to its part, outputs/<study>/hpo/parts/<dataset>/<Optuna study>/: python -m canopy.studies.common part <study>
+    <model> <size>), started from the Optuna study of the database of the dataset if there is one; the parts are merged
+    into the databases of the datasets afterwards (python -m canopy.studies.common merge [studies]);
   - search space of the reservoirs (reservoir_params) and run of a study by several workers (run_study);
   - conditions of the final evaluations, for each size (number of neurons in all), from the best trials of the
     studies: the pure models (canopy.models.reservoirs.PURE_MODELS) with the best parameters of their study,
@@ -21,6 +26,7 @@ Shared parts of the studies of canopy.studies (phrase_boundaries, next_phrase, s
     mean true_output of its last third minus that of its first third (Wilcoxon signed-rank test over the phrases).
 """
 import sys
+from pathlib import Path
 
 import numpy as np
 import optuna
@@ -32,26 +38,30 @@ from optuna.trial import TrialState
 from scipy.stats import wilcoxon
 
 from canopy.models.reservoirs import ESN_MODELS, HAG_MODELS, PURE_MODELS, parts
-from canopy.settings import N_TRIALS, WORKERS, outputs_dir, studies_dir, study_name
+from canopy.settings import (DATASET_NAME, JOB_STUDIES, N_TRIALS, PREFIXES, WORKERS, database, outputs_dir, studies_database,
+                             study_name)
 
 
 # ---- studies of the reservoirs
-def storage(study, name):
-    """Storage of the Optuna study name of the study (one SQLite database, in canopy.settings.studies_dir)."""
-    studies_dir(study).mkdir(parents=True, exist_ok=True)
-    return f"sqlite:///{studies_dir(study) / name}.sqlite3"
+def storage(path):
+    """Optuna storage of the SQLite database path."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    return f"sqlite:///{path}"
 
 
-def study_exists(study, name):
-    """Whether the database of the study exists (opening a missing SQLite database creates it, empty)."""
-    return (studies_dir(study) / f"{name}.sqlite3").exists()
+def study_names(path):
+    """Names of the Optuna studies of a database (none if it does not exist: opening a missing SQLite database creates
+    it, empty)."""
+    return set(optuna.get_all_study_names(storage(path))) if Path(path).exists() else set()
 
 
 def best_trial(study, name):
-    if not study_exists(study, name):  # (without creating an empty database)
+    """Best trial of the Optuna study name of the study (None without it), in canopy.settings.studies_database."""
+    if name not in study_names(studies_database(study)):
         return None
     try:
-        return optuna.load_study(study_name=name, storage=storage(study, name)).best_trial
+        return optuna.load_study(study_name=name, storage=storage(studies_database(study))).best_trial
     except (KeyError, ValueError):
         return None
 
@@ -110,7 +120,7 @@ def longest_phrase(songs, train_songs, frame):
 
 
 def _worker(study, name, make_objective, model, size, worker_index):
-    optuna_study = optuna.load_study(study_name=name, storage=storage(study, name),
+    optuna_study = optuna.load_study(study_name=name, storage=storage(studies_database(study)),
                                      sampler=TPESampler(constant_liar=True, seed=worker_index))
     optuna_study.optimize(make_objective(model, size), gc_after_trial=True, catch=(Exception,),
                           callbacks=[MaxTrialsCallback(N_TRIALS, states=(TrialState.COMPLETE,)), stop_after_failures()])
@@ -118,20 +128,57 @@ def _worker(study, name, make_objective, model, size, worker_index):
 
 def run_study(study, model, size, make_objective):
     """Optimizes the Optuna study of the model and size of the study (N_TRIALS complete trials, WORKERS processes),
-    resumed where it stopped; make_objective(model, size): the objective of a worker (its data loaded in the worker)."""
+    resumed where it stopped; make_objective(model, size): the objective of a worker (its data loaded in the worker).
+    In a job (HAG_CANARY_STUDIES), it starts from the Optuna study of the database of the dataset if it is there and
+    not in the database of the job."""
     if model not in PURE_MODELS:
         raise ValueError(f"Unknown model {model}, expected one of {PURE_MODELS} (the hybrids <hag>+<esn> are not "
                          "optimized: they combine the parts optimized alone, see conditions)")
     name = study_name(study, model, size)
-    optuna_study = optuna.create_study(study_name=name, storage=storage(study, name), direction="maximize",
+    studies = studies_database(study)
+    if JOB_STUDIES and name not in study_names(studies) and name in study_names(database(study)):
+        optuna.copy_study(from_study_name=name, from_storage=storage(database(study)), to_storage=storage(studies))
+        print(f"{name}: resumed from {database(study)}", flush=True)
+    optuna_study = optuna.create_study(study_name=name, storage=storage(studies), direction="maximize",
                                        load_if_exists=True)
-    done = len([t for t in optuna_study.trials if t.state == TrialState.COMPLETE])
-    print(f"{name}: {done} / {N_TRIALS} trials done, {WORKERS} workers", flush=True)
+    done = completed(optuna_study)
+    print(f"{name}: {done} / {N_TRIALS} trials done, {WORKERS} workers, {studies}", flush=True)
     if done < N_TRIALS:
         Parallel(n_jobs=WORKERS)(delayed(_worker)(study, name, make_objective, model, size, i) for i in range(WORKERS))
-    best = optuna.load_study(study_name=name, storage=storage(study, name)).best_trial
+    best = optuna.load_study(study_name=name, storage=storage(studies)).best_trial
     print(f"best trial {best.number}: {best.value:.4f}, {best.user_attrs}, {best.params}")
     return best
+
+
+def completed(optuna_study):
+    return sum(t.state == TrialState.COMPLETE for t in optuna_study.trials)
+
+
+def copy_into(name, source, target):
+    """Copies the Optuna study name of the database source into the database target, replacing it if source has more
+    completed trials. Returns a description."""
+    source_study = optuna.load_study(study_name=name, storage=storage(source))
+    if name in study_names(target):
+        current = optuna.load_study(study_name=name, storage=storage(target))
+        if completed(current) >= completed(source_study):
+            return f"{name}: kept ({completed(current)} completed trials >= {completed(source_study)})"
+        optuna.delete_study(study_name=name, storage=storage(target))
+    optuna.copy_study(from_study_name=name, from_storage=storage(source), to_storage=storage(target))
+    return f"{name}: {completed(source_study)} completed trials copied into {target}"
+
+
+def part_dir(study, model, size):
+    """Folder of the database of a job optimizing the Optuna study of a model and size (slurm/canary.sbatch)."""
+    return outputs_dir(study, "hpo") / "parts" / DATASET_NAME / study_name(study, model, size)
+
+
+def merge(studies=None):
+    """Merges the parts of the jobs (outputs/<study>/hpo/parts/<dataset>/<Optuna study>/<dataset>_db.sqlite3) into the
+    databases of the datasets (outputs/<study>/hpo/<dataset>_db.sqlite3)."""
+    for study in studies or PREFIXES:
+        for part in sorted((outputs_dir(study, "hpo") / "parts").glob("*/*/*.sqlite3")):
+            for name in sorted(study_names(part)):
+                print(copy_into(name, part, outputs_dir(study, "hpo") / part.name))
 
 
 def conditions(size, study):
@@ -304,3 +351,13 @@ def save_certainty(bins, phrases, study, name, size, title, labels):
     fig.savefig(folder / f"{stem}.png", dpi=150)
     plt.close(fig)
     print("Saved to", folder / f"{stem}.csv", folder / f"{stem}_phrases.csv", folder / f"{stem}.png")
+
+
+if __name__ == "__main__":
+    command = sys.argv[1] if len(sys.argv) > 1 else ""
+    if command == "part":  # (the folder of the part of a job, slurm/canary.sbatch)
+        print(part_dir(sys.argv[2], sys.argv[3], int(sys.argv[4])))
+    elif command == "merge":
+        merge(sys.argv[2:] or None)
+    else:
+        raise ValueError(f"Unknown command {command!r}: part <study> <model> <size>, merge [studies]")

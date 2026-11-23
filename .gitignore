@@ -17,10 +17,10 @@ CLAUDE.md
 /canopy/datasets/marron1/*
 !/canopy/datasets/marron1/annotations/
 
-# outputs/<study>: Optuna databases and parts of the jobs (only the result CSVs are tracked)
-/outputs/*/hpo/
+# outputs/<study>: the parts of the jobs (the Optuna databases, hpo/*_db.sqlite3, are tracked with Git LFS, and the
+# result CSVs)
+/outputs/*/hpo/parts/
 /outputs/*/*/*_parts/
-/outputs/*/*/studies/
 # GAN of the syllables: checkpoints (only the losses are tracked)
 /outputs/syllable_generation/*/checkpoints/
 /outputs/syllable_generation/*/last.pt

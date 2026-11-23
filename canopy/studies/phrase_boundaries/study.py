@@ -9,8 +9,8 @@ the ridge coefficient and the peak threshold are then chosen on the out-of-fold 
 in the trial (user attributes "ridge" and "threshold") for the final evaluation; they are not hyperparameters of the
 search. Search space: canopy.studies.common.reservoir_params, without leak.
 
-Studies: "<model>_<size>" of the pure models (canopy.models.reservoirs.PURE_MODELS), one SQLite database each in
-outputs/phrase_boundaries/hpo (canopy.settings.studies_dir).
+Studies: "<model>_<size>" of the pure models (canopy.models.reservoirs.PURE_MODELS), all in the SQLite database of the
+dataset, outputs/phrase_boundaries/hpo/marron1_db.sqlite3 (canopy.settings.database).
 
 Usage: python -m canopy.studies.phrase_boundaries.study <model> <size>   (HAG_CANARY_N_TRIALS trials, HAG_CANARY_WORKERS
   processes optimizing the same study)

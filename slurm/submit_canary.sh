@@ -45,14 +45,16 @@ echo "pure models: job array $pure ($n studies, $PURE_TASKS)"
 if [ "${HAG_CANARY_TASK:-boundaries}" = syllables ]; then
     # syllable classification: one job per condition, submitted once the studies exist (slurm/submit_syllables.sh)
     evaluation=$(sbatch --parsable "${NODES[@]}" --cpus-per-task=1 --mem=4G --time=00:30:00 --dependency=afterok:$pure \
-        --job-name=submit-syllables --output=slurm/logs/%x-%j.out --wrap="bash slurm/submit_syllables.sh $(IFS=,; echo "${SIZES[*]}") $NB_SEEDS")
+        --job-name=submit-syllables --output=slurm/logs/%x-%j.out --wrap="bash slurm/merge_studies.sh syllables_classification; bash slurm/submit_syllables.sh $(IFS=,; echo "${SIZES[*]}") $NB_SEEDS")
     echo "final evaluation (syllable classification, one job per condition): submitted by job $evaluation, after $pure"
 elif [ "${HAG_CANARY_TASK:-boundaries}" = next_phrase ]; then
     evaluation=$(sbatch --parsable "${NODES[@]}" --cpus-per-task=1 --mem=4G --time=00:30:00 --dependency=afterok:$pure \
-        --job-name=submit-next-phrase --output=slurm/logs/%x-%j.out --wrap="bash slurm/submit_next_phrase.sh $(IFS=,; echo "${SIZES[*]}") $NB_SEEDS")
+        --job-name=submit-next-phrase --output=slurm/logs/%x-%j.out --wrap="bash slurm/merge_studies.sh next_phrase; bash slurm/submit_next_phrase.sh $(IFS=,; echo "${SIZES[*]}") $NB_SEEDS")
     echo "final evaluation (next phrase, one job per condition): submitted by job $evaluation, after $pure"
 else
-    evaluation=$(sbatch --parsable "${NODES[@]}" --job-name=canary-evaluate --dependency=afterok:$pure \
+    merge=$(sbatch --parsable "${NODES[@]}" --cpus-per-task=1 --mem=4G --time=00:30:00 --dependency=afterok:$pure \
+        --job-name=merge-studies --output=slurm/logs/%x-%j.out --wrap="bash slurm/merge_studies.sh phrase_boundaries")
+    evaluation=$(sbatch --parsable "${NODES[@]}" --job-name=canary-evaluate --dependency=afterok:$merge \
         --export=ALL,HAG_CANARY_MODE=evaluate,HAG_CANARY_WORKERS=1 --output=slurm/logs/%x-%j.out \
         slurm/canary.sbatch "$(IFS=,; echo "${SIZES[*]}")" "$NB_SEEDS")
     echo "final evaluation: job $evaluation, after $pure"

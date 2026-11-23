@@ -10,8 +10,9 @@ hyperparameter of the search. Search space:
 canopy.studies.common.reservoir_params, with the gain of each group of input features with HAG_CANARY_INPUT_GAINS=1 and
 the leak rate of each reservoir with HAG_CANARY_LEAK=1.
 
-Studies: "syllables_[gains_][leak_]<model>_<size>" of the pure models (canopy.models.reservoirs.PURE_MODELS), one
-SQLite database each in outputs/syllables_classification/hpo (canopy.settings.studies_dir).
+Studies: "syllables_[gains_][leak_]<model>_<size>" of the pure models (canopy.models.reservoirs.PURE_MODELS), all in
+the SQLite database of the dataset, outputs/syllables_classification/hpo/marron1_db.sqlite3
+(canopy.settings.database).
 
 Usage: python -m canopy.studies.syllables_classification.study <model> <size>   (HAG_CANARY_N_TRIALS trials, HAG_CANARY_WORKERS processes
   optimizing the same study)

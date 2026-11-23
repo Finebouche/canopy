@@ -11,8 +11,9 @@ canopy.studies.common.reservoir_params, with the leak rate of each reservoir wit
 
 Studies: "next_phrase_[calls_][reset_][leak_]<model>_<size>" (canopy.settings: HAG_CANARY_CALLS=1, the calls are
 phrases too; HAG_CANARY_RESET=1, the reservoirs reset at each phrase; HAG_CANARY_LEAK=1) of the pure models
-(canopy.models.reservoirs.PURE_MODELS), one SQLite database each in outputs/next_phrase/hpo (canopy.settings.studies_dir). (The
-campaigns with the deltas of the MFCC and their results: outputs/next_phrase/ablation_deltas_leak; the studies of other readouts: bachue.)
+(canopy.models.reservoirs.PURE_MODELS), all in the SQLite database of the dataset,
+outputs/next_phrase/hpo/marron1_db.sqlite3 (canopy.settings.database). (The campaigns with the deltas of the MFCC and
+their results: outputs/next_phrase/ablation_deltas_leak; the studies of other readouts: bachue.)
 
 Usage: python -m canopy.studies.next_phrase.study <model> <size>   (HAG_CANARY_N_TRIALS trials, HAG_CANARY_WORKERS
   processes optimizing the same study)

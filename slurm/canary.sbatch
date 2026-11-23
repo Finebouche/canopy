@@ -14,9 +14,11 @@
 #   - HAG_CANARY_MODE=certainty: certainty along the phrases python -m
 #     canopy.studies.syllables_classification.certainty [size] [conditions] [nb_seeds]
 #     (canopy.studies.next_phrase.certainty with HAG_CANARY_TASK=next_phrase).
-# The Optuna databases are in /dev/shm during the job (SQLite does not support the network file systems well, and the
-# suroit nodes have no local disk), copied from and back to outputs/<study>/hpo, the study of HAG_CANARY_TASK (every
-# 10 minutes and at the end, without replacing more recent files). Submit everything with slurm/submit_canary.sh.
+# The Optuna database of a study is in /dev/shm during its job (SQLite does not support the network file systems well,
+# and the suroit nodes have no local disk), copied from and back to its part, outputs/<study>/hpo/parts/<dataset>/
+# <Optuna study>/ (every 10 minutes and at the end); the parts are merged into the databases of the datasets,
+# outputs/<study>/hpo/marron1_db.sqlite3, by slurm/merge_studies.sh (python -m canopy.studies.common merge), and the
+# evaluations read these databases. Submit everything with slurm/submit_canary.sh.
 #SBATCH --job-name=canary
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
@@ -68,14 +70,22 @@ case "${HAG_CANARY_TASK:-boundaries}" in  # (the folder of the study, canopy.set
 esac
 case "${HAG_CANARY_MODE:-hpo}" in evaluate) STUDY=phrase_boundaries ;; next_phrase) STUDY=next_phrase ;;
     syllables) STUDY=syllables_classification ;; esac
-STUDIES=$PWD/outputs/$STUDY/hpo
-export HAG_CANARY_STUDIES=/dev/shm/hag_canary_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID:-0}
-mkdir -p "$STUDIES" "$HAG_CANARY_STUDIES" slurm/logs
-rsync -a "$STUDIES/" "$HAG_CANARY_STUDIES/"
-sync_back() { rsync -a --update "$HAG_CANARY_STUDIES/" "$STUDIES/"; }
-trap 'sync_back; rm -rf "$HAG_CANARY_STUDIES" "$NUMBA_CACHE_DIR"' EXIT
-trap 'exit 143' TERM
-(while true; do sleep 600; sync_back; done) &
+mkdir -p slurm/logs
+if [ "${HAG_CANARY_MODE:-hpo}" = hpo ]; then
+    # the study in a database of its own (several jobs writing the same SQLite file would corrupt it), its part, merged
+    # into the database of the dataset afterwards; the study starts from that of the database of the dataset if it is
+    # there (canopy.studies.common.run_study)
+    PART=$(python -m canopy.studies.common part "$STUDY" "$1" "$2" 2>/dev/null | tail -n 1)
+    export HAG_CANARY_STUDIES=/dev/shm/hag_canary_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID:-0}
+    mkdir -p "$PART" "$HAG_CANARY_STUDIES"
+    rsync -a "$PART/" "$HAG_CANARY_STUDIES/"
+    sync_back() { rsync -a "$HAG_CANARY_STUDIES/" "$PART/"; }
+    trap 'sync_back; rm -rf "$HAG_CANARY_STUDIES" "$NUMBA_CACHE_DIR"' EXIT
+    trap 'exit 143' TERM
+    (while true; do sleep 600; sync_back; done) &
+else
+    trap 'rm -rf "$NUMBA_CACHE_DIR"' EXIT
+fi
 
 echo "[slurm] job ${SLURM_JOB_ID} ${SLURM_ARRAY_TASK_ID:-}: ${HAG_CANARY_MODE:-hpo} $*, on $(hostname)," \
     "$CPUS cores, $WORKERS workers"
