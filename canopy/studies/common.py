@@ -4,7 +4,7 @@ Shared parts of the studies of canopy.studies (phrase_boundaries, next_phrase, s
   - storage of the Optuna studies of the reservoirs, as in hag and bachue: all those of a study and of a dataset in one
     SQLite database, outputs/<study>/hpo/marron1_db.sqlite3 (canopy.settings.database), their names
     canopy.settings.study_name. Several jobs writing the same SQLite file would corrupt it: a job (slurm/canary.sbatch)
-    optimizes its Optuna study in a database of its own (HAG_CANARY_STUDIES, in /dev/shm during the job, copied back
+    optimizes its Optuna study in a database of its own (CANOPY_JOB_STUDIES_DIR, in /dev/shm during the job, copied back
     to its part, outputs/<study>/hpo/parts/<dataset>/<Optuna study>/: python -m canopy.studies.common part <study>
     <model> <size>), started from the Optuna study of the database of the dataset if there is one; the parts are merged
     into the databases of the datasets afterwards (python -m canopy.studies.common merge [studies]);
@@ -38,8 +38,8 @@ from optuna.trial import TrialState
 from scipy.stats import wilcoxon
 
 from canopy.models.reservoirs import ESN_MODELS, HAG_MODELS, PURE_MODELS, parts
-from canopy.settings import (DATASET_NAME, JOB_STUDIES, N_TRIALS, PREFIXES, WORKERS, database, outputs_dir, studies_database,
-                             study_name)
+from canopy.settings import (DATASET_NAME, JOB_STUDIES, N_TRIALS, PREFIXES, WORKERS, database, outputs_dir,
+                             studies_database, study_name)
 
 
 # ---- studies of the reservoirs
@@ -104,7 +104,8 @@ def reservoir_params(trial, model, max_length, leak=False, input_gains=False):
             else:
                 params[p + "variance_target"] = trial.suggest_float(p + "variance_target", 0.001, 0.02, step=0.001)
                 params[p + "variance_spread"] = trial.suggest_float(p + "variance_spread", 0.001, 0.05, step=0.002)
-                params[p + "intrinsic_saturation"] = trial.suggest_float(p + "intrinsic_saturation", 0.8, 0.98, step=0.02)
+                params[p + "intrinsic_saturation"] = trial.suggest_float(p + "intrinsic_saturation", 0.8, 0.98,
+                                                                         step=0.02)
                 params[p + "intrinsic_coef"] = trial.suggest_float(p + "intrinsic_coef", 0.8, 0.98, step=0.02)
         elif part in ESN_MODELS:
             params[p + "connectivity"] = trial.suggest_float(p + "connectivity", 0, 1)
@@ -129,7 +130,7 @@ def _worker(study, name, make_objective, model, size, worker_index):
 def run_study(study, model, size, make_objective):
     """Optimizes the Optuna study of the model and size of the study (N_TRIALS complete trials, WORKERS processes),
     resumed where it stopped; make_objective(model, size): the objective of a worker (its data loaded in the worker).
-    In a job (HAG_CANARY_STUDIES), it starts from the Optuna study of the database of the dataset if it is there and
+    In a job (CANOPY_JOB_STUDIES_DIR), it starts from the Optuna study of the database of the dataset if it is there and
     not in the database of the job."""
     if model not in PURE_MODELS:
         raise ValueError(f"Unknown model {model}, expected one of {PURE_MODELS} (the hybrids <hag>+<esn> are not "
@@ -190,7 +191,8 @@ def conditions(size, study):
         if trial is None:
             print(f"  (no study {study_name(study, model, size)}: {model} skipped)")
         else:
-            result.append((model, model, trial.params, trial.user_attrs.get("ridge"), trial.user_attrs.get("threshold")))
+            result.append((model, model, trial.params, trial.user_attrs.get("ridge"),
+                           trial.user_attrs.get("threshold")))
     for hag in HAG_MODELS:
         trial = best_trial(study, study_name(study, hag, size))
         if trial is not None:

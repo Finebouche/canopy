@@ -35,7 +35,7 @@ optimized with Optuna on the train songs, and evaluated on the test songs with p
 |:--|:--|
 | `canopy/datasets` | The canary songs (`songs.py`): annotations, phrases, train/test split by song, MFCC |
 | `canopy/datasets/marron1` | The dataset: its annotations (`annotations/`, tracked), those of the Zenodo record corrected (5 shifted songs, 21 relabeled phrases then 41 relabeled segments, see `songs.py`); its audio and MFCC caches (not tracked) |
-| `canopy` | Shared parts: the settings of the studies from the variables `HAG_CANARY_*`, their names and their output folders (`settings.py`), MFCC and HAG pretraining phrases (`common.py`) |
+| `canopy` | Shared parts: the settings of the studies from the variables `CANOPY_*`, their names and their output folders (`settings.py`), MFCC and HAG pretraining phrases (`common.py`) |
 | `canopy/models` | Reservoirs of the tasks (`reservoirs.py`, in JAX); the readouts trained online and of order 2 are studied in [bachue](https://github.com/Finebouche/bachue) |
 | `canopy/studies` | One folder per study, self-contained: each file imports only the shared modules (`settings`, `common`, `datasets`, `models`, `studies/common.py`) and the files of its own study (`tests/test_layout.py`). `common.py`: the shared parts of the studies (storage of the Optuna studies, search space of the reservoirs, run of a study, conditions of the evaluations, paired comparisons, certainty along the phrases) |
 | `canopy/studies/phrase_boundaries` | Phrase boundaries: `task.py` (targets, ridge readout, scores), `study.py` (study of the reservoirs, with its cross-validation by song), `evaluation.py` (final evaluation on the test songs) |
@@ -75,12 +75,12 @@ cached (`canopy/datasets/marron1/boundary_features_*.pkl`).
 From the root of the repository (`PYTHONPATH=$PWD`), for example:
 
 ```bash
-HAG_CANARY_CALLS=1 HAG_CANARY_LEAK=1 python -m canopy.studies.next_phrase.study mean_hag 1000
-HAG_CANARY_CALLS=1 HAG_CANARY_LEAK=1 python -m canopy.studies.next_phrase.evaluation 500,1000 10
+CANOPY_WITH_CALLS=1 CANOPY_LEAKY_RESERVOIRS=1 python -m canopy.studies.next_phrase.study mean_hag 1000
+CANOPY_WITH_CALLS=1 CANOPY_LEAKY_RESERVOIRS=1 python -m canopy.studies.next_phrase.evaluation 500,1000 10
 python -m canopy.studies.syllables_classification.evaluation 250,500,1000 10
 ```
 
-The variables `HAG_CANARY_*` (variants of the studies, their storage) are documented in `canopy/settings.py`. On PlaFRIM, the whole experiments are submitted with the scripts of `slurm/` (`PYTHONPATH` = the checkout and
+The variables `CANOPY_*` (variants of the studies, their storage) are documented in `canopy/settings.py`. On PlaFRIM, the whole experiments are submitted with the scripts of `slurm/` (`PYTHONPATH` = the checkout and
 hag, `HAG_DIR`, default `~/hag_core`).
 
 ---

@@ -17,7 +17,8 @@ Song generator, stage 1: the loop of the predictor of the next phrase on recorde
     of each phrase sung: the next choice) and read by the voice.
   - Voice ("recorded"): a recorded phrase of the label in memory, drawn among those of the train songs, with the
     silence that preceded it in its song: the MFCC frames between two prediction points of a train song, those that
-    the reservoir hears between two decisions of the readout in canopy.studies.next_phrase.task. A song starts with the frames of a
+    the reservoir hears between two decisions of the readout in canopy.studies.next_phrase.task. A song starts with the
+        frames of a
     train song before its first prediction point (the silence and noise before its first phrase), drawn too, and ends
     when END is chosen or after max_phrases phrases (default twice the longest train song).
   - Reservoirs run phrase by phrase from the state of each song (advance), the songs in parallel.
@@ -33,8 +34,8 @@ songs of a Markov chain of order 1 fitted on the train songs (markov_songs: what
 if it uses more than the last phrase); novel_2grams: the part of the 2-grams of the songs that the train songs do not
 have.
 
-Reservoirs: the studies of canopy.studies.next_phrase.study, with the calls (HAG_CANARY_CALLS=1) and leaky
-reservoirs (HAG_CANARY_LEAK=1) by default, the studies available locally; the calls are phrases too.
+Reservoirs: the studies of canopy.studies.next_phrase.study, with the calls (CANOPY_WITH_CALLS=1) and leaky
+reservoirs (CANOPY_LEAKY_RESERVOIRS=1) by default, the studies available locally; the calls are phrases too.
 
 Results: outputs/song_generation/<prefix of the studies><model>_<size>_songs.csv (one row per phrase of the
 generated songs: end, temperature, song, position, label, the source song and frames of the recorded phrase; label
@@ -48,8 +49,8 @@ import os
 import sys
 from collections import Counter
 
-os.environ.setdefault("HAG_CANARY_CALLS", "1")
-os.environ.setdefault("HAG_CANARY_LEAK", "1")
+os.environ.setdefault("CANOPY_WITH_CALLS", "1")
+os.environ.setdefault("CANOPY_LEAKY_RESERVOIRS", "1")
 
 import jax.numpy as jnp  # noqa: E402
 import numpy as np  # noqa: E402

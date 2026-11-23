@@ -1,21 +1,21 @@
 """
-Study of the reservoirs of the prediction of the next phrase (canopy.studies.next_phrase.task), on the train songs only (the
-test songs are used once, by canopy.studies.next_phrase.evaluation).
+Study of the reservoirs of the prediction of the next phrase (canopy.studies.next_phrase.task), on the train songs only
+(the test songs are used once, by canopy.studies.next_phrase.evaluation).
 
 Objective: out-of-fold accuracy of the next phrase, in a 3-fold cross-validation by song on the train songs
-(choose_ridge): in each fold, the reservoirs are built (HAG learning on phrases of the fold's training songs), the
-ridge readout of canopy.studies.next_phrase.task is trained on the fold's training songs for every coefficient of RIDGES and
-predicts the points of the fold's validation songs; the ridge coefficient is chosen on the out-of-fold points, stored
-in the trial (user attribute "ridge") for the final evaluation; it is not a hyperparameter of the search. Search space:
-canopy.studies.common.reservoir_params, with the leak rate of each reservoir with HAG_CANARY_LEAK=1.
+(choose_ridge): in each fold, the reservoirs are built (HAG learning on phrases of the fold's training songs), the ridge
+readout of canopy.studies.next_phrase.task is trained on the fold's training songs for every coefficient of RIDGES and
+predicts the points of the fold's validation songs; the ridge coefficient is chosen on the out-of-fold points, stored in
+the trial (user attribute "ridge") for the final evaluation; it is not a hyperparameter of the search. Search space:
+canopy.studies.common.reservoir_params, with the leak rate of each reservoir with CANOPY_LEAKY_RESERVOIRS=1.
 
-Studies: "next_phrase_[calls_][reset_][leak_]<model>_<size>" (canopy.settings: HAG_CANARY_CALLS=1, the calls are
-phrases too; HAG_CANARY_RESET=1, the reservoirs reset at each phrase; HAG_CANARY_LEAK=1) of the pure models
-(canopy.models.reservoirs.PURE_MODELS), all in the SQLite database of the dataset,
+Studies: "next_phrase_[calls_][reset_][leak_]<model>_<size>" (canopy.settings: CANOPY_WITH_CALLS=1, the calls are
+phrases too; CANOPY_RESET_EACH_PHRASE=1, the reservoirs reset at each phrase; CANOPY_LEAKY_RESERVOIRS=1) of the pure
+models (canopy.models.reservoirs.PURE_MODELS), all in the SQLite database of the dataset,
 outputs/next_phrase/hpo/marron1_db.sqlite3 (canopy.settings.database). (The campaigns with the deltas of the MFCC and
 their results: outputs/next_phrase/ablation_deltas_leak; the studies of other readouts: bachue.)
 
-Usage: python -m canopy.studies.next_phrase.study <model> <size>   (HAG_CANARY_N_TRIALS trials, HAG_CANARY_WORKERS
+Usage: python -m canopy.studies.next_phrase.study <model> <size>   (CANOPY_N_TRIALS trials, CANOPY_WORKERS
   processes optimizing the same study)
 """
 import sys
@@ -36,7 +36,8 @@ from canopy.studies.next_phrase.task import fit_readout, load_task_dataset, poin
 # canopy.studies.next_phrase.certainty and canopy.studies.song_generation.generator.
 def choose_ridge(model, params, size, songs, train_songs, frame, classes):
     """(ridge coefficient of the best out-of-fold accuracy, this accuracy), in a 3-fold cross-validation by song on the
-    train songs (the reservoirs of fold k drawn with np.random.seed(CV_SEED + k), HAG learning on its training songs)."""
+    train songs (the reservoirs of fold k drawn with np.random.seed(CV_SEED + k), HAG learning on its training
+    songs)."""
     correct = np.zeros(len(RIDGES))
     total = 0
     for k, (fit_index, val_index) in enumerate(KFold(N_FOLDS, shuffle=True, random_state=FOLD_SEED).split(train_songs)):

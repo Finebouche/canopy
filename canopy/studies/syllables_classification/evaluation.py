@@ -1,16 +1,18 @@
 """
-Final evaluation of the syllable classification on the test songs (canopy.studies.syllables_classification.task), after the studies of
-canopy.studies.syllables_classification.study (with the same variables: HAG_CANARY_INPUT_GAINS, HAG_CANARY_LEAK). Conditions, for each
-size: "mfcc" (no reservoir, once) and canopy.studies.common.conditions. The ridge coefficient is chosen by the
-cross-validation of the task (canopy.studies.syllables_classification.study.choose_ridge), then the readout is trained on all the train songs
-and scored on the test songs for each seed (paired comparisons of the frame accuracy, canopy.studies.common).
+Final evaluation of the syllable classification on the test songs (canopy.studies.syllables_classification.task), after
+the studies of canopy.studies.syllables_classification.study (with the same variables: CANOPY_SEARCH_INPUT_GAINS,
+CANOPY_LEAKY_RESERVOIRS). Conditions, for each size: "mfcc" (no reservoir, once) and canopy.studies.common.conditions.
+The ridge coefficient is chosen by the cross-validation of the task
+(canopy.studies.syllables_classification.study.choose_ridge), then the readout is trained on all the train songs and
+scored on the test songs for each seed (paired comparisons of the frame accuracy, canopy.studies.common).
 
 Results: outputs/syllables_classification/performances/<prefix of the studies>hpo.csv and ..._comparisons.csv
-(syllables_hpo.csv,
-syllables_gains_hpo.csv with HAG_CANARY_INPUT_GAINS=1, syllables_gains_leak_hpo.csv with HAG_CANARY_LEAK=1 too).
-Usage:
-  python -m canopy.studies.syllables_classification.evaluation [sizes] [nb_seeds]   all the conditions (default 250,500,1000, 10 seeds)
-  python -m canopy.studies.syllables_classification.evaluation run <condition> <size> [nb_seeds]   one condition (one job of
+(syllables_hpo.csv, syllables_gains_hpo.csv with CANOPY_SEARCH_INPUT_GAINS=1, syllables_gains_leak_hpo.csv with
+CANOPY_LEAKY_RESERVOIRS=1 too). Usage:
+  python -m canopy.studies.syllables_classification.evaluation [sizes] [nb_seeds]   all the conditions (default
+      250,500,1000, 10 seeds)
+  python -m canopy.studies.syllables_classification.evaluation run <condition> <size> [nb_seeds]   one condition (one
+      job of
       slurm/submit_syllables.sh), results in outputs/syllables_classification/performances/<prefix>hpo_parts
   python -m canopy.studies.syllables_classification.evaluation merge   results of the parts and the comparisons
   python -m canopy.studies.syllables_classification.evaluation list <sizes>   "<condition> <size>" of all the conditions
@@ -36,7 +38,8 @@ def all_conditions(sizes):
     """[(condition, model, params, size)], mfcc first (size 0)."""
     todo = [("mfcc", "mfcc", {}, 0)]
     for size in sizes:
-        todo += [(condition, model, params, size) for condition, model, params, _, _ in conditions(size, "syllables_classification")]
+        todo += [(condition, model, params, size)
+                 for condition, model, params, _, _ in conditions(size, "syllables_classification")]
     return todo
 
 

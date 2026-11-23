@@ -1,8 +1,8 @@
 """
 Low-dimensional WaveGAN of Pagliarini et al. (2021): the WaveGAN of Donahue, McAuley & Puckette (2019) ("Adversarial
 audio synthesis", ICLR) with a latent space of dimension 3, generating SLICE_LENGTH samples (~1 s at 16 kHz) of audio,
-trained on single canary syllables (canopy.studies.syllable_generation.syllables). After their TensorFlow code (WaveGAN of
-Donahue et al.) and the PyTorch version of N. Trouvain (canarygan), with the settings of WaveGAN:
+trained on single canary syllables (canopy.studies.syllable_generation.syllables). After their TensorFlow code (WaveGAN
+of Donahue et al.) and the PyTorch version of N. Trouvain (canarygan), with the settings of WaveGAN:
   - generator: z ~ U(-1, 1)^LATENT_DIM -> dense (16 x 16 DIM, ReLU) -> 5 transposed convolutions (kernel 25, stride 4:
     16 DIM -> 8 DIM -> 4 DIM -> 2 DIM -> DIM -> 1 channel, length 16 -> 16384), ReLU, tanh at the output;
   - critic: 5 convolutions (kernel 25, stride 4: 1 -> DIM -> ... -> 16 DIM channels), LeakyReLU 0.2, phase shuffle
@@ -13,8 +13,8 @@ Donahue et al.) and the PyTorch version of N. Trouvain (canarygan), with the set
     batches of BATCH_SIZE; weights initialized as TensorFlow's layers (Glorot uniform, zero bias).
 canarygan differs: no phase shuffle by default (rad 0, WaveGAN's is 2), He initialization and the same batch of real
 syllables for the CRITIC_STEPS updates of the critic. Variants (environment variables, saved in <run>/settings.json):
-HAG_CANARY_GAN_PHASE_SHUFFLE (radius, default 2), HAG_CANARY_GAN_INIT ("glorot", default, or "kaiming": canarygan's),
-HAG_CANARY_GAN_SAME_BATCH=1 (canarygan's), HAG_CANARY_GAN_LR (default 1e-4).
+CANOPY_GAN_PHASE_SHUFFLE (radius, default 2), CANOPY_GAN_INIT ("glorot", default, or "kaiming": canarygan's),
+CANOPY_GAN_SAME_BATCH=1 (canarygan's), CANOPY_GAN_LEARNING_RATE (default 1e-4).
 
 An epoch is len(dataset) / BATCH_SIZE updates of the generator (canarygan's, 250 for the 16 000 syllables): the
 critic sees each syllable CRITIC_STEPS times per epoch. Checkpoints (generator, critic, optimizers, generator of the
@@ -22,8 +22,10 @@ epoch) in <run>/checkpoints every SAVE_EVERY epochs and the last one in <run>/la
 losses every LOG_EVERY updates in <run>/losses.csv. Device: CUDA, else CPU (device).
 
 Usage (from the root of canopy):
-  python -m canopy.studies.syllable_generation.wavegan train <run> [epochs]       (default EPOCHS; resumed from <run>/last.pt)
-  python -m canopy.studies.syllable_generation.wavegan generate <checkpoint> <n> <file.npz> [seed]   x (n, SLICE_LENGTH), z
+  python -m canopy.studies.syllable_generation.wavegan train <run> [epochs]       (default EPOCHS; resumed from
+      <run>/last.pt)
+  python -m canopy.studies.syllable_generation.wavegan generate <checkpoint> <n> <file.npz> [seed]   x (n,
+      SLICE_LENGTH), z
 """
 import csv
 import json
@@ -42,12 +44,12 @@ from canopy.studies.syllable_generation.syllables import SLICE_LENGTH, syllable_
 LATENT_DIM = 3
 DIM = 64
 KERNEL, STRIDE = 25, 4
-PHASE_SHUFFLE = int(os.environ.get("HAG_CANARY_GAN_PHASE_SHUFFLE", 2))
+PHASE_SHUFFLE = int(os.environ.get("CANOPY_GAN_PHASE_SHUFFLE", 2))
 LAMBDA = 10.0
 CRITIC_STEPS = 5
-LR, BETAS = float(os.environ.get("HAG_CANARY_GAN_LR", 1e-4)), (0.5, 0.9)
-INIT = os.environ.get("HAG_CANARY_GAN_INIT", "glorot")  # ("kaiming": He normal weights, PyTorch's bias, canarygan)
-SAME_BATCH = os.environ.get("HAG_CANARY_GAN_SAME_BATCH") == "1"  # (one batch for the CRITIC_STEPS updates, canarygan)
+LR, BETAS = float(os.environ.get("CANOPY_GAN_LEARNING_RATE", 1e-4)), (0.5, 0.9)
+INIT = os.environ.get("CANOPY_GAN_INIT", "glorot")  # ("kaiming": He normal weights, PyTorch's bias, canarygan)
+SAME_BATCH = os.environ.get("CANOPY_GAN_SAME_BATCH") == "1"  # (one batch for the CRITIC_STEPS updates, canarygan)
 BATCH_SIZE = 64
 EPOCHS = 1000
 SAVE_EVERY = 15  # epochs (canarygan's)
@@ -170,7 +172,8 @@ def train(run, epochs=EPOCHS, seed=0):
     log = open(run / "losses.csv", "a", newline="")
     writer = csv.writer(log)
     if log.tell() == 0:
-        writer.writerow(["epoch", "step", "critic_loss", "wasserstein", "gradient_penalty", "generator_loss", "seconds"])
+        writer.writerow(["epoch", "step", "critic_loss", "wasserstein", "gradient_penalty", "generator_loss",
+                         "seconds"])
     start = time.time()
     while epoch < epochs:
         for step in range(steps_per_epoch):

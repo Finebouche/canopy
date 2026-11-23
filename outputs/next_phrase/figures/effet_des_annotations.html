@@ -94,7 +94,7 @@ svg.model{display:block;width:100%;max-width:360px;height:auto;margin-top:6px}
 <figure>
 <figcaption>Modèle 2 : un n-gramme des étiquettes</figcaption>
 <p>Le n-gramme ne lit pas l'audio. Il lit les vraies étiquettes des n phrases précédentes et donne la suite la plus fréquente dans les chants d'entraînement.</p>
-<svg class="model" viewBox="0 0 340 318" role="img" aria-label="Schéma : les n dernières étiquettes forment un contexte ; le n-gramme compte les phrases qui suivent ce contexte dans les chants d'entraînement et donne la plus fréquente">
+<svg class="model" viewBox="0 0 340 284" role="img" aria-label="Schéma : les n dernières étiquettes forment un contexte ; le n-gramme compte les phrases qui suivent ce contexte dans les chants d'entraînement et donne la plus fréquente">
 <rect class="s-fill" x="14" y="12" width="72" height="26" rx="4"/><rect class="s-fill" x="90" y="12" width="72" height="26" rx="4"/><rect class="s-fill" x="166" y="12" width="72" height="26" rx="4"/>
 <rect class="s-dash" x="246" y="12" width="72" height="26" rx="4"/>
 <text class="s-t" x="50" y="29">J1</text><text class="s-t" x="126" y="29">J2</text><text class="s-t" x="202" y="29">B1</text><text class="s-t" x="282" y="29">?</text>
@@ -109,7 +109,25 @@ svg.model{display:block;width:100%;max-width:360px;height:auto;margin-top:6px}
 <text class="s-m" x="170" y="212">barres : nombres d'occurrences (exemple fictif)</text>
 <line class="s-line" x1="170" y1="218" x2="170" y2="238" marker-end="url(#ah)"/>
 <rect class="s-out" x="50" y="240" width="240" height="32" rx="6"/><text class="s-t" x="170" y="260">phrase suivante : la plus fréquente</text>
-<text class="s-m" x="170" y="292">adaptatif : le plus long contexte déjà vu,</text><text class="s-m" x="170" y="307">jusqu'à 10 étiquettes</text>
+</svg>
+<figcaption style="margin-top:22px">Modèle 2 bis : le n-gramme adaptatif</figcaption>
+<p>L'ordre n n'est pas fixé. À chaque phrase, le n-gramme adaptatif essaie le contexte le plus long, de 10 étiquettes. Si ce contexte n'apparaît dans aucun chant d'entraînement, il retire l'étiquette la plus ancienne et recommence.</p>
+<svg class="model" viewBox="0 0 340 300" role="img" aria-label="Schéma : le n-gramme adaptatif essaie les contextes de 10, 9, puis moins d'étiquettes, et garde le premier contexte déjà vu dans les chants d'entraînement ; il donne la suite la plus fréquente de ce contexte">
+<text class="s-m" x="20" y="16" style="text-anchor:start">contexte essayé</text><text class="s-m" x="320" y="16" style="text-anchor:end">dans les chants d'entraînement ?</text>
+<rect class="s-box" x="14" y="24" width="212" height="28" rx="6"/><text class="s-t" x="120" y="42">10 étiquettes : … H E N J1 J2 B1</text>
+<text class="s-m" x="320" y="42" style="text-anchor:end">jamais vu</text>
+<line class="s-line" x1="120" y1="52" x2="120" y2="66" marker-end="url(#ah)"/>
+<rect class="s-box" x="14" y="68" width="212" height="28" rx="6"/><text class="s-t" x="120" y="86">9 étiquettes : … E N J1 J2 B1</text>
+<text class="s-m" x="320" y="86" style="text-anchor:end">jamais vu</text>
+<line class="s-line" x1="120" y1="96" x2="120" y2="110" marker-end="url(#ah)"/>
+<text class="s-m" x="120" y="126">… une étiquette de moins à chaque essai …</text>
+<line class="s-line" x1="120" y1="134" x2="120" y2="148" marker-end="url(#ah)"/>
+<rect class="s-out" x="14" y="150" width="212" height="28" rx="6"/><text class="s-t" x="120" y="168">3 étiquettes : J1 J2 B1</text>
+<text class="s-t" x="320" y="168" style="text-anchor:end">déjà vu</text>
+<line class="s-line" x1="120" y1="178" x2="120" y2="196" marker-end="url(#ah)"/>
+<rect class="s-out" x="14" y="198" width="312" height="44" rx="6"/><text class="s-t" x="170" y="216">phrase suivante : la suite la plus fréquente</text><text class="s-m" x="170" y="232">de ce contexte, le plus long déjà vu</text>
+<text class="s-m" x="170" y="264">aucun contexte vu, même d'une étiquette :</text><text class="s-m" x="170" y="279">la phrase la plus fréquente de tous les chants</text>
+<text class="s-m" x="170" y="295">(exemple fictif)</text>
 </svg>
 </figure>
 </div>

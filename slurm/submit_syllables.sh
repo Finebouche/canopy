@@ -23,10 +23,10 @@ PYTHONPATH=$PWD:${HAG_DIR:-$HOME/hag_core} \
 n=$(wc -l < "$TASKS")
 
 array=$(sbatch --parsable "${NODES[@]}" --array=0-$((n - 1))%$MAX_RUNNING --time=1-00:00:00 \
-    --job-name=canary-syllables --export=ALL,HAG_CANARY_MODE=syllables,HAG_CANARY_WORKERS=1,HAG_CANARY_TASKS="$TASKS" \
+    --job-name=canary-syllables --export=ALL,CANOPY_JOB_MODE=syllables,CANOPY_WORKERS=1,CANOPY_TASK_FILE="$TASKS" \
     slurm/canary.sbatch "$NB_SEEDS")
 echo "syllable classification: job array $array ($n conditions, $TASKS)"
 merge=$(sbatch --parsable "${NODES[@]}" --cpus-per-task=1 --mem=8G --time=01:00:00 --dependency=afterany:$array \
-    --job-name=syllables-merge --export=ALL,HAG_CANARY_MODE=syllables,HAG_CANARY_WORKERS=1 \
+    --job-name=syllables-merge --export=ALL,CANOPY_JOB_MODE=syllables,CANOPY_WORKERS=1 \
     --output=slurm/logs/%x-%j.out slurm/canary.sbatch merge)
 echo "merge and comparisons: job $merge (after $array)"

@@ -1,11 +1,11 @@
 """
-Final evaluation of the prediction of the next phrase on the test songs (canopy.studies.next_phrase.task), after the studies
-of canopy.studies.next_phrase.study (with the same variables: HAG_CANARY_CALLS, HAG_CANARY_RESET, HAG_CANARY_LEAK).
-Conditions, for each size: "mfcc" (no reservoir, once) and canopy.studies.common.conditions. The ridge coefficient is
-that of the best trial of the study, or, for the conditions without a study, chosen by the same cross-validation
-(canopy.studies.next_phrase.study.choose_ridge). For each seed (paired), the reservoirs are drawn with np.random.seed(seed),
-the readout is trained on all the train songs and scored on the test songs (canopy.studies.next_phrase.task.metrics); then
-the paired comparisons by seed of the accuracy (canopy.studies.common).
+Final evaluation of the prediction of the next phrase on the test songs (canopy.studies.next_phrase.task), after the
+studies of canopy.studies.next_phrase.study (with the same variables: CANOPY_WITH_CALLS, CANOPY_RESET_EACH_PHRASE,
+CANOPY_LEAKY_RESERVOIRS). Conditions, for each size: "mfcc" (no reservoir, once) and canopy.studies.common.conditions.
+The ridge coefficient is that of the best trial of the study, or, for the conditions without a study, chosen by the same
+cross-validation (canopy.studies.next_phrase.study.choose_ridge). For each seed (paired), the reservoirs are drawn with
+np.random.seed(seed), the readout is trained on all the train songs and scored on the test songs
+(canopy.studies.next_phrase.task.metrics); then the paired comparisons by seed of the accuracy (canopy.studies.common).
 
 Results: outputs/next_phrase/performances/<prefix of the studies>hpo.csv (e.g. next_phrase_calls_leak_hpo.csv) and
 ..._comparisons.csv.

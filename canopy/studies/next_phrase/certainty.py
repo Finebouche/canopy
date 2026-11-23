@@ -1,12 +1,12 @@
 """
-Certainty of the prediction of the next phrase (canopy.studies.next_phrase.task) along the current phrase: its readout is
-trained at the prediction points of the train songs, then applied to every frame of each phrase of the test songs up to
-its prediction point (no frame hearing the next phrase), the true class being the next phrase (END after the last
+Certainty of the prediction of the next phrase (canopy.studies.next_phrase.task) along the current phrase: its readout
+is trained at the prediction points of the train songs, then applied to every frame of each phrase of the test songs up
+to its prediction point (no frame hearing the next phrase), the true class being the next phrase (END after the last
 one); output of its unit, margin and correctness along the phrase (canopy.studies.common). With
-HAG_CANARY_RESET=1, the frames of a phrase are those of a run of the reservoirs from a zero state on the phrase.
+CANOPY_RESET_EACH_PHRASE=1, the frames of a phrase are those of a run of the reservoirs from a zero state on the phrase.
 
 Reservoirs: best parameters of the next-phrase studies (canopy.studies.next_phrase.study, with the same variables, e.g.
-HAG_CANARY_LEAK=1, HAG_CANARY_RESET=1, HAG_CANARY_CALLS=1), ridge of the best trial of the study.
+CANOPY_LEAKY_RESERVOIRS=1, CANOPY_RESET_EACH_PHRASE=1, CANOPY_WITH_CALLS=1), ridge of the best trial of the study.
 Results: outputs/next_phrase/analysis/<prefix of the studies>certainty_<size>.csv, ..._phrases.csv and .png (e.g.
 next_phrase_leak_certainty_1000.csv).
 
@@ -59,7 +59,8 @@ if __name__ == "__main__":
     nb_seeds = int(sys.argv[3]) if len(sys.argv) > 3 else 3
 
     songs, train_songs, test_songs, frame, classes = load_task_dataset()
-    bins, phrases = evaluate_conditions("next_phrase", size, wanted, nb_seeds, songs, train_songs, test_songs, frame, classes,
-                                        choose_ridge, run)
-    save_certainty(bins, phrases, "next_phrase", f"{PREFIXES['next_phrase']}certainty", size, "Certainty of the next phrase along the phrases",
-         ("Output of the next-phrase unit", "Accuracy of the next phrase"))
+    bins, phrases = evaluate_conditions("next_phrase", size, wanted, nb_seeds, songs, train_songs, test_songs, frame,
+                                        classes, choose_ridge, run)
+    save_certainty(bins, phrases, "next_phrase", f"{PREFIXES['next_phrase']}certainty", size,
+                   "Certainty of the next phrase along the phrases",
+                   ("Output of the next-phrase unit", "Accuracy of the next phrase"))

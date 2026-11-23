@@ -1,18 +1,18 @@
 """
-Study of the reservoirs of the phrase boundaries (canopy.studies.phrase_boundaries.task), on the train songs only (the test songs are
-used once, by canopy.studies.phrase_boundaries.evaluation).
+Study of the reservoirs of the phrase boundaries (canopy.studies.phrase_boundaries.task), on the train songs only (the
+test songs are used once, by canopy.studies.phrase_boundaries.evaluation).
 
-Objective: F1 of the boundaries, out of fold, in a 3-fold cross-validation by song on the train songs
-(cross_validate): in each fold, the reservoirs are built (HAG learning on phrases of the fold's training songs) and
-the ridge readout of canopy.studies.phrase_boundaries.task is trained for every coefficient of RIDGES on the fold's training songs;
-the ridge coefficient and the peak threshold are then chosen on the out-of-fold outputs of all the train songs, stored
-in the trial (user attributes "ridge" and "threshold") for the final evaluation; they are not hyperparameters of the
-search. Search space: canopy.studies.common.reservoir_params, without leak.
+Objective: F1 of the boundaries, out of fold, in a 3-fold cross-validation by song on the train songs (cross_validate):
+in each fold, the reservoirs are built (HAG learning on phrases of the fold's training songs) and the ridge readout of
+canopy.studies.phrase_boundaries.task is trained for every coefficient of RIDGES on the fold's training songs; the ridge
+coefficient and the peak threshold are then chosen on the out-of-fold outputs of all the train songs, stored in the
+trial (user attributes "ridge" and "threshold") for the final evaluation; they are not hyperparameters of the search.
+Search space: canopy.studies.common.reservoir_params, without leak.
 
 Studies: "<model>_<size>" of the pure models (canopy.models.reservoirs.PURE_MODELS), all in the SQLite database of the
 dataset, outputs/phrase_boundaries/hpo/marron1_db.sqlite3 (canopy.settings.database).
 
-Usage: python -m canopy.studies.phrase_boundaries.study <model> <size>   (HAG_CANARY_N_TRIALS trials, HAG_CANARY_WORKERS
+Usage: python -m canopy.studies.phrase_boundaries.study <model> <size>   (CANOPY_N_TRIALS trials, CANOPY_WORKERS
   processes optimizing the same study)
 """
 import sys

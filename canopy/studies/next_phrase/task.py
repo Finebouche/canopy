@@ -1,14 +1,14 @@
 """
 Prediction of the next phrase of canary songs from their audio, in the configuration of Maxime Canonne's next-phrase
-prediction (ESN reading the phrase labels of the song, with START and END), but with the MFCC of the song as input:
-the reservoir runs over the whole song (no reset between the phrases) and, at the end of each phrase, the readout
-predicts the label of the next one (END after the last phrase); before the first phrase (Maxime's START), it predicts
-the first one. Phrases as in canopy.datasets.songs.load_songs: SIL, TRASH and call ignored, repeated labels merged;
-with HAG_CANARY_CALLS=1 (canopy.settings.CALLS), the calls are phrases too (SIL and TRASH ignored). With
-HAG_CANARY_RESET=1 (RESET), the reservoirs hear the current phrase only, from a zero state (as the Canary task of hag),
-instead of the whole song: the state of a point is the last one of a run on the frames of the phrase that ends there
-(the zero state before the first phrase, or for a phrase shorter than the delay of the points). Input: the 13 MFCC,
-without their deltas (their effect, with and without leak: outputs/next_phrase/ablation_deltas_leak).
+prediction (ESN reading the phrase labels of the song, with START and END), but with the MFCC of the song as input: the
+reservoir runs over the whole song (no reset between the phrases) and, at the end of each phrase, the readout predicts
+the label of the next one (END after the last phrase); before the first phrase (Maxime's START), it predicts the first
+one. Phrases as in canopy.datasets.songs.load_songs: SIL, TRASH and call ignored, repeated labels merged; with
+CANOPY_WITH_CALLS=1 (canopy.settings.CALLS), the calls are phrases too (SIL and TRASH ignored). With
+CANOPY_RESET_EACH_PHRASE=1 (RESET), the reservoirs hear the current phrase only, from a zero state (as the Canary task
+of hag), instead of the whole song: the state of a point is the last one of a run on the frames of the phrase that ends
+there (the zero state before the first phrase, or for a phrase shorter than the delay of the points). Input: the 13
+MFCC, without their deltas (their effect, with and without leak: outputs/next_phrase/ablation_deltas_leak).
 
 No input after the prediction point: the MFCC are computed without the floor of the dB at 80 dB below the maximum of
 the whole song (librosa's default, which depends on the future of each frame: canopy.common.load_dataset(top_db=None)),
@@ -16,11 +16,11 @@ and the MFCC frames are centered (half a window, 11.6 ms, of audio after their t
 what follows the time t is the one of the last frame whose window ends before t (DELAY earlier).
 
 Readout: ridge regression on the one-hot next label at the prediction points, on the state at each point
-(reservoirpy.nodes.Ridge, solver HAG_CANARY_RIDGE_SOLVER, default "svd"), its coefficient chosen by the 3-fold
+(reservoirpy.nodes.Ridge, solver CANOPY_RIDGE_SOLVER, default "svd"), its coefficient chosen by the 3-fold
 cross-validation by song on the train songs of the studies (canopy.studies.next_phrase.study.choose_ridge), then trained
-on all the train songs and scored on the test songs (evaluate). Metrics as Maxime's (metrics): accuracy and macro F1 of all the points,
-without the last one of each song ("skip_last": its target is END), and of the phrases only ("no_end": points whose
-target is a phrase, argmax over the phrases), and the share of the ends of the songs found (end_recall).
+on all the train songs and scored on the test songs (evaluate). Metrics as Maxime's (metrics): accuracy and macro F1 of
+all the points, without the last one of each song ("skip_last": its target is END), and of the phrases only ("no_end":
+points whose target is a phrase, argmax over the phrases), and the share of the ends of the songs found (end_recall).
 (Readouts on other windows of states, trained online or of order 2: bachue.)
 """
 import numpy as np
@@ -61,8 +61,8 @@ def prepare(songs, train_songs, frame):
 
 
 def load_task_dataset():
-    """(songs, train songs, test songs, frame, classes): the MFCC without the floor of the dB (canopy.common.load_dataset
-    with top_db=None) and the prediction points (prepare)."""
+    """(songs, train songs, test songs, frame, classes): the MFCC without the floor of the dB
+    (canopy.common.load_dataset with top_db=None) and the prediction points (prepare)."""
     songs, train_songs, test_songs, frame = load_dataset(top_db=None)
     return songs, train_songs, test_songs, frame, prepare(songs, train_songs, frame)
 
@@ -117,7 +117,8 @@ def metrics(scores, true, classes):
     return dict(accuracy=np.mean(predicted == true), f1_macro=f1(true, predicted),
                 accuracy_skip_last=np.mean(predicted[phrase] == true[phrase]),
                 f1_macro_skip_last=f1(true[phrase], predicted[phrase]),
-                accuracy_no_end=np.mean(no_end[phrase] == true[phrase]), f1_macro_no_end=f1(true[phrase], no_end[phrase]),
+                accuracy_no_end=np.mean(no_end[phrase] == true[phrase]),
+                f1_macro_no_end=f1(true[phrase], no_end[phrase]),
                 end_recall=np.mean(predicted[~phrase] == END))
 
 

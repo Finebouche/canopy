@@ -1,13 +1,13 @@
 """
 Final evaluation of the phrase boundaries on the test songs (used only here), after the studies of
-canopy.studies.phrase_boundaries.study. Conditions, for each size (number of neurons in all): "mfcc" (no reservoir, once)
-and canopy.studies.common.conditions (the pure models with the best parameters of their study, the projections of the
-HAG models, the hybrids). The ridge coefficient and the peak threshold are those of the best trial of the study, or,
+canopy.studies.phrase_boundaries.study. Conditions, for each size (number of neurons in all): "mfcc" (no reservoir,
+once) and canopy.studies.common.conditions (the pure models with the best parameters of their study, the projections of
+the HAG models, the hybrids). The ridge coefficient and the peak threshold are those of the best trial of the study, or,
 for the conditions without a study (mfcc, projections, hybrids), chosen with the same cross-validation on the train
-songs (canopy.studies.phrase_boundaries.study.cross_validate). For each seed (the same seeds for all the conditions, i.e. paired),
-the reservoirs are drawn with np.random.seed(seed) and learn (HAG) on phrases of all the train songs, the readout is
-trained on all the train songs and the boundaries of the test songs are scored; then the paired comparisons by seed
-of the F1 (canopy.studies.common).
+songs (canopy.studies.phrase_boundaries.study.cross_validate). For each seed (the same seeds for all the conditions,
+i.e. paired), the reservoirs are drawn with np.random.seed(seed) and learn (HAG) on phrases of all the train songs, the
+readout is trained on all the train songs and the boundaries of the test songs are scored; then the paired comparisons
+by seed of the F1 (canopy.studies.common).
 
 Results: outputs/phrase_boundaries/performances/evaluation.csv (one row per condition, size and seed) and
 comparisons.csv.

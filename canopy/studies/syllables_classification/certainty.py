@@ -1,13 +1,15 @@
 """
 Does the certainty of the syllable classification rise along a phrase? After training the readout of the syllable
-classification (canopy.studies.syllables_classification.task), on every phrase of the test songs (merged annotated segments
-of one syllable type, SIL, TRASH and calls excluded: songs[w]["phrases"]), frame by frame, the output of the unit of the
-true class, its margin and the correctness (canapy's frame accuracy), along the phrase
+classification (canopy.studies.syllables_classification.task), on every phrase of the test songs (merged annotated
+segments of one syllable type, SIL, TRASH and calls excluded: songs[w]["phrases"]), frame by frame, the output of the
+unit of the true class, its margin and the correctness (canapy's frame accuracy), along the phrase
 (canopy.studies.common).
 
-Reservoirs: best parameters of the syllable studies (canopy.studies.syllables_classification.study, with the same variables, e.g. HAG_CANARY_INPUT_GAINS=1, HAG_CANARY_LEAK=1), ridge of the best trial of the study (or chosen by the
-cross-validation of canopy.studies.syllables_classification.task). Results: outputs/syllables_classification/analysis/certainty_<size>.csv (bins),
-certainty_<size>_phrases.csv (first / last third per condition and seed) and certainty_<size>.png.
+Reservoirs: best parameters of the syllable studies (canopy.studies.syllables_classification.study, with the same
+variables, e.g. CANOPY_SEARCH_INPUT_GAINS=1, CANOPY_LEAKY_RESERVOIRS=1), ridge of the best trial of the study (or chosen
+by the cross-validation of canopy.studies.syllables_classification.task). Results:
+outputs/syllables_classification/analysis/certainty_<size>.csv (bins), certainty_<size>_phrases.csv (first / last third
+per condition and seed) and certainty_<size>.png.
 
 Usage: python -m canopy.studies.syllables_classification.certainty [size] [conditions] [nb_seeds]
   (default 1000, mean_hag,var_hag,random_ee,random_ee_dense, 3 seeds)
@@ -45,7 +47,7 @@ if __name__ == "__main__":
     nb_seeds = int(sys.argv[3]) if len(sys.argv) > 3 else 3
 
     songs, train_songs, test_songs, frame, classes = load_task_dataset()
-    bins, phrases = evaluate_conditions("syllables_classification", size, wanted, nb_seeds, songs, train_songs, test_songs, frame, classes,
-                                        choose_ridge, run)
+    bins, phrases = evaluate_conditions("syllables_classification", size, wanted, nb_seeds, songs, train_songs,
+                                        test_songs, frame, classes, choose_ridge, run)
     save_certainty(bins, phrases, "syllables_classification", "certainty", size, "Certainty along the phrases",
-         ("Output of the true-class unit", "Frame accuracy"))
+                   ("Output of the true-class unit", "Frame accuracy"))

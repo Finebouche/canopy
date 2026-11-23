@@ -1,11 +1,11 @@
 """
-Decoder of the syllable type of 1 s samples (the perceptual model of Pagliarini, Leblois & Hinaut 2021, an ESN after
-the canary decoder of Trouvain & Hinaut 2020): MFCC of the sample (13 coefficients and their deltas and delta-deltas,
+Decoder of the syllable type of 1 s samples (the perceptual model of Pagliarini, Leblois & Hinaut 2021, an ESN after the
+canary decoder of Trouvain & Hinaut 2020): MFCC of the sample (13 coefficients and their deltas and delta-deltas,
 FEATURES, standardized with the means and standard deviations of the training samples), read frame by frame by an echo
 state network (UNITS leaky tanh neurons) whose ridge readout is trained to give the type of the sample at every frame
 (the whole second, silence included: "notrim"). Outputs: the readout at every frame (raw, Pagliarini et al.'s auditory
-activation is computed from it, canopy.studies.syllable_generation.sensorimotor) and the type of the largest mean output over
-the frames (predict).
+activation is computed from it, canopy.studies.syllable_generation.sensorimotor) and the type of the largest mean output
+over the frames (predict).
 
 Types: the 16 syllable types and, optionally, a garbage type X (Pagliarini et al.'s "EXT" decoder: samples of the GAN
 early in its training and white noise, the sounds that are not canary syllables).

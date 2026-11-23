@@ -7,7 +7,8 @@ it, frames from floor(onset / hop) to floor(offset / hop) (canapy's as_frame_com
 
 Readout: ridge regression on the one-hot labels (centered statistics, canopy.models.reservoirs.normal_equations), its
 coefficient chosen by the 3-fold cross-validation by song on the train songs of the studies
-(canopy.studies.syllables_classification.study.choose_ridge), then trained on all the train songs and scored on the test songs (evaluate).
+(canopy.studies.syllables_classification.study.choose_ridge), then trained on all the train songs and scored on the test
+songs (evaluate).
 """
 import numpy as np
 

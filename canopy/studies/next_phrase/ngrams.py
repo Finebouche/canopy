@@ -1,12 +1,12 @@
 """
-References of the prediction of the next phrase (canopy.studies.next_phrase.task): n-grams of the true labels of the previous
-phrases, fixed order n (the n previous labels, START before the first phrase; unseen context: the most frequent next
-label) and adaptive (the longest context seen in the train songs, up to MAX_ORDER), scored at the test points with the
-metrics of the reservoirs (canopy.studies.next_phrase.task.metrics), and the share of the points whose context was not seen in
-the train songs (marginal frequencies then).
+References of the prediction of the next phrase (canopy.studies.next_phrase.task): n-grams of the true labels of the
+previous phrases, fixed order n (the n previous labels, START before the first phrase; unseen context: the most frequent
+next label) and adaptive (the longest context seen in the train songs, up to MAX_ORDER), scored at the test points with
+the metrics of the reservoirs (canopy.studies.next_phrase.task.metrics), and the share of the points whose context was
+not seen in the train songs (marginal frequencies then).
 
 Results: outputs/next_phrase/performances/next_phrase_ngrams.csv (next_phrase_calls_ngrams.csv with
-HAG_CANARY_CALLS=1).
+CANOPY_WITH_CALLS=1).
 Usage: python -m canopy.studies.next_phrase.ngrams
 """
 from collections import Counter

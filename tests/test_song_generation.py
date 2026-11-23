@@ -3,8 +3,8 @@ from hag.models.activation_functions import tanh
 from hag.performances.esn_model_evaluation import init_reservoir
 
 from canopy.models.reservoirs import states
-from canopy.studies.song_generation.generator import (END, START, RecordedVoice, WorkingMemory, advance, choose, jax_nodes,
-                                              markov_songs, ngrams, total_variation)
+from canopy.studies.song_generation.generator import (END, START, RecordedVoice, WorkingMemory, advance, choose,
+                                                      jax_nodes, markov_songs, ngrams, total_variation)
 
 
 def reservoir(units=20, features=3, leak=0.3, seed=0):

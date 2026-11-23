@@ -4,14 +4,14 @@
 #   1. optimization of the pure models (canopy.models.reservoirs.PURE_MODELS) at each size of SIZES, job array;
 #   2. final evaluation with NB_SEEDS seeds and the paired comparisons (after 1), the hybrids <hag>+<esn> of each size
 #      combining the parts optimized alone at half the size (they are not optimized).
-# HAG_CANARY_N_TRIALS trials per study (Optuna, TPE; canopy.settings). With HAG_CANARY_TASK=syllables, the studies optimize
+# CANOPY_N_TRIALS trials per study (Optuna, TPE; canopy.settings). With CANOPY_TASK=syllables, the studies optimize
 # the frame accuracy of the syllable classification ("syllables_<model>_<size>") and the final evaluation is
 # slurm/submit_syllables.sh.
-# With HAG_CANARY_TASK=next_phrase, they optimize the accuracy of the prediction of the next phrase
+# With CANOPY_TASK=next_phrase, they optimize the accuracy of the prediction of the next phrase
 # ("next_phrase_<model>_<size>") and the final evaluation is slurm/submit_next_phrase.sh.
-# With HAG_CANARY_INPUT_GAINS=1 (syllables), the gain of each group of input features is searched too, and with
-# HAG_CANARY_LEAK=1 (syllables, next_phrase), the leak rate of each reservoir.
-# Usage: [HAG_CANARY_TASK=syllables|next_phrase] [HAG_CANARY_INPUT_GAINS=1] [HAG_CANARY_LEAK=1] [PURE="..."]
+# With CANOPY_SEARCH_INPUT_GAINS=1 (syllables), the gain of each group of input features is searched too, and with
+# CANOPY_LEAKY_RESERVOIRS=1 (syllables, next_phrase), the leak rate of each reservoir.
+# Usage: [CANOPY_TASK=syllables|next_phrase] [CANOPY_SEARCH_INPUT_GAINS=1] [CANOPY_LEAKY_RESERVOIRS=1] [PURE="..."]
 #        [SIZES="..."] bash slurm/submit_canary.sh
 set -euo pipefail
 NB_SEEDS=${NB_SEEDS:-10}
@@ -39,15 +39,15 @@ for size in "${SIZES[@]}"; do for model in "${PURE[@]}"; do echo "$model $size";
 
 n=$(wc -l < "$PURE_TASKS")
 pure=$(sbatch --parsable "${NODES[@]}" --array=0-$((n - 1))%$MAX_RUNNING --job-name=canary-pure \
-    --export=ALL,HAG_CANARY_TASKS="$PURE_TASKS" slurm/canary.sbatch)
+    --export=ALL,CANOPY_TASK_FILE="$PURE_TASKS" slurm/canary.sbatch)
 echo "pure models: job array $pure ($n studies, $PURE_TASKS)"
 
-if [ "${HAG_CANARY_TASK:-boundaries}" = syllables ]; then
+if [ "${CANOPY_TASK:-boundaries}" = syllables ]; then
     # syllable classification: one job per condition, submitted once the studies exist (slurm/submit_syllables.sh)
     evaluation=$(sbatch --parsable "${NODES[@]}" --cpus-per-task=1 --mem=4G --time=00:30:00 --dependency=afterok:$pure \
         --job-name=submit-syllables --output=slurm/logs/%x-%j.out --wrap="bash slurm/merge_studies.sh syllables_classification; bash slurm/submit_syllables.sh $(IFS=,; echo "${SIZES[*]}") $NB_SEEDS")
     echo "final evaluation (syllable classification, one job per condition): submitted by job $evaluation, after $pure"
-elif [ "${HAG_CANARY_TASK:-boundaries}" = next_phrase ]; then
+elif [ "${CANOPY_TASK:-boundaries}" = next_phrase ]; then
     evaluation=$(sbatch --parsable "${NODES[@]}" --cpus-per-task=1 --mem=4G --time=00:30:00 --dependency=afterok:$pure \
         --job-name=submit-next-phrase --output=slurm/logs/%x-%j.out --wrap="bash slurm/merge_studies.sh next_phrase; bash slurm/submit_next_phrase.sh $(IFS=,; echo "${SIZES[*]}") $NB_SEEDS")
     echo "final evaluation (next phrase, one job per condition): submitted by job $evaluation, after $pure"
@@ -55,7 +55,7 @@ else
     merge=$(sbatch --parsable "${NODES[@]}" --cpus-per-task=1 --mem=4G --time=00:30:00 --dependency=afterok:$pure \
         --job-name=merge-studies --output=slurm/logs/%x-%j.out --wrap="bash slurm/merge_studies.sh phrase_boundaries")
     evaluation=$(sbatch --parsable "${NODES[@]}" --job-name=canary-evaluate --dependency=afterok:$merge \
-        --export=ALL,HAG_CANARY_MODE=evaluate,HAG_CANARY_WORKERS=1 --output=slurm/logs/%x-%j.out \
+        --export=ALL,CANOPY_JOB_MODE=evaluate,CANOPY_WORKERS=1 --output=slurm/logs/%x-%j.out \
         slurm/canary.sbatch "$(IFS=,; echo "${SIZES[*]}")" "$NB_SEEDS")
     echo "final evaluation: job $evaluation, after $pure"
 fi
