@@ -1,8 +1,8 @@
 #!/bin/bash
 # Canary songs on PlaFRIM (the studies of canopy.studies), from a checkout of canopy:
 #   - CANOPY_JOB_MODE=hpo (default): study of the reservoirs python -m canopy.studies.<study>.study <model> <size>, the
-#     study given by CANOPY_TASK (boundaries, default: phrase_boundaries; next_phrase; next_phrase_labels; syllables:
-#     syllables_classification),
+#     study given by CANOPY_TASK (boundaries, default: phrase_boundaries; next_phrase; next_phrase_labels; next_syllable;
+#     syllables: syllables_classification),
 #     CANOPY_WORKERS processes sharing the cores; in a job array, "<model> <size>" is the line SLURM_ARRAY_TASK_ID
 #     (from 0) of the file CANOPY_TASK_FILE, optionally followed by variables KEY=VALUE of the study;
 #   - CANOPY_JOB_MODE=evaluate: final evaluation of the boundaries python -m
@@ -13,6 +13,8 @@
 #     slurm/submit_syllables.sh);
 #   - CANOPY_JOB_MODE=next_phrase_labels: python -m canopy.studies.next_phrase_labels.evaluation [sizes] [nb_seeds]
 #     (slurm/submit_next_phrase_labels.sh);
+#   - CANOPY_JOB_MODE=next_syllable: python -m canopy.studies.next_syllable.evaluation [sizes] [nb_seeds]
+#     (slurm/submit_next_syllable.sh, with its variables CANOPY_SYLLABLE_READOUT and CANOPY_SYLLABLE_SCORE);
 #   - CANOPY_JOB_MODE=certainty: certainty along the phrases python -m
 #     canopy.studies.syllables_classification.certainty [size] [conditions] [nb_seeds]
 #     (canopy.studies.next_phrase.certainty with CANOPY_TASK=next_phrase).
@@ -71,7 +73,8 @@ case "${CANOPY_TASK:-boundaries}" in  # (the folder of the study, canopy.setting
     *) STUDY=$CANOPY_TASK ;;
 esac
 case "${CANOPY_JOB_MODE:-hpo}" in evaluate) STUDY=phrase_boundaries ;; next_phrase) STUDY=next_phrase ;;
-    next_phrase_labels) STUDY=next_phrase_labels ;; syllables) STUDY=syllables_classification ;; esac
+    next_phrase_labels) STUDY=next_phrase_labels ;; next_syllable) STUDY=next_syllable ;;
+    syllables) STUDY=syllables_classification ;; esac
 mkdir -p slurm/logs
 if [ "${CANOPY_JOB_MODE:-hpo}" = hpo ]; then
     # the study in a database of its own (several jobs writing the same SQLite file would corrupt it), its part, merged
@@ -101,12 +104,14 @@ case "${CANOPY_JOB_MODE:-hpo}" in
             syllables) python -m canopy.studies.syllables_classification.evaluation "$@" ;;
         esac ;;
     next_phrase_labels) python -m canopy.studies.next_phrase_labels.evaluation "$@" ;;
+    next_syllable) python -m canopy.studies.next_syllable.evaluation "$@" ;;
     certainty)
         if [ "${CANOPY_TASK:-}" = next_phrase ]; then python -m canopy.studies.next_phrase.certainty "$@"
         else python -m canopy.studies.syllables_classification.certainty "$@"; fi ;;
     hpo)
         case "${CANOPY_TASK:-boundaries}" in
-            boundaries|next_phrase|next_phrase_labels|syllables) python -m "canopy.studies.$STUDY.study" "$@" ;;
+            boundaries|next_phrase|next_phrase_labels|next_syllable|syllables)
+                python -m "canopy.studies.$STUDY.study" "$@" ;;
             *) echo "unknown CANOPY_TASK=$CANOPY_TASK" >&2; exit 1 ;;
         esac ;;
     *) echo "unknown CANOPY_JOB_MODE=$CANOPY_JOB_MODE" >&2; exit 1 ;;

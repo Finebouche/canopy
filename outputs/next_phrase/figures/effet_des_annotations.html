@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Phrase suivante : effet des annotations corrigées</title>
 <style>
-:root{--bg:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--old:#888780;--new:#2a78d6;--res:#008300;--all:#6250d6;--pale:#afa9ec;--lab:#d18b00}
-@media (prefers-color-scheme: dark){:root{--bg:#151515;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--old:#888780;--new:#3987e5;--res:#0ca30c;--all:#9085e9;--pale:#6c63c9;--lab:#e8a917}}
+:root{--bg:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--old:#888780;--new:#2a78d6;--res:#008300;--all:#6250d6;--pale:#afa9ec;--lab:#d18b00;--syl:#eb6834;--syl2:#f4b393;--phr:#c62f2e}
+@media (prefers-color-scheme: dark){:root{--bg:#151515;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--old:#888780;--new:#3987e5;--res:#0ca30c;--all:#9085e9;--pale:#6c63c9;--lab:#e8a917;--syl:#f07a45;--syl2:#9c5a3c;--phr:#e66767}}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif}
 main{max-width:1240px;margin:0 auto;padding:24px 16px 48px}
 h1{font-size:22px;font-weight:500;margin:0 0 4px}
@@ -14,6 +14,7 @@ h2{font-size:17px;font-weight:500;margin:36px 0 4px}
 p{margin:6px 0;color:var(--ink2)}
 .legend{display:flex;flex-wrap:wrap;gap:16px;margin:10px 0 6px;font-size:13px;color:var(--ink2)}
 .legend span{display:flex;align-items:center;gap:6px}
+.pick{white-space:nowrap;cursor:pointer;border-radius:4px;padding:1px 3px}.pick.on{background:var(--grid)}.pick.off{opacity:.4}
 .sq{width:10px;height:10px;border-radius:2px}
 .ln{width:18px;height:0;border-top:2px solid}
 .box{position:relative;width:100%}
@@ -35,7 +36,7 @@ svg.model{display:block;width:100%;max-width:360px;height:auto;margin-top:6px}
 .s-t{fill:var(--ink);font-size:12.5px;text-anchor:middle}
 .s-m{fill:var(--muted);font-size:11.5px;text-anchor:middle}
 .s-bar{fill:var(--old)}.s-best{fill:var(--new)}
-.s-res{fill:none;stroke:var(--res);stroke-width:1.8}.s-lab{fill:none;stroke:var(--lab);stroke-width:1.8}.s-key{fill:none;stroke-width:1.8}
+.s-res{fill:none;stroke:var(--res);stroke-width:1.8}.s-lab{fill:none;stroke:var(--lab);stroke-width:1.8}.s-syl{fill:none;stroke:var(--syl);stroke-width:1.8}.s-key{fill:none;stroke-width:1.8}
 figcaption .sq{display:inline-block;margin-right:7px}
 .half{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:32px;align-items:start}
 table.t{border-collapse:collapse;font-size:13px;margin-top:8px;width:100%}
@@ -50,34 +51,38 @@ table.t th{font-weight:500;color:var(--ink2)}
 <h1>Phrase suivante : effet des annotations corrigées</h1>
 <p>marron1, avec les calls comme phrases. Les annotations ont été corrigées le 3 novembre 2026 (21 phrases) puis le 7 novembre (41 segments). Les études et les n-grammes ont été refaits ensuite.</p>
 
-<h2>Les études changent peu entre octobre et novembre, et les étiquettes donnent 6 à 8 points de moins que l'audio</h2>
-<p>Meilleure exactitude en validation croisée de chaque étude ridge (« last » → « last », 400 essais). Octobre : <code>outputs/next_phrase/hpo/marron1_before_annotation_relabels_db.sqlite3</code>. Novembre : <code>outputs/next_phrase/hpo/marron1_db.sqlite3</code>. Les réservoirs sur les étiquettes ont leurs propres études, avec fuite seulement, du 23 novembre : <code>outputs/next_phrase_labels/hpo/marron1_db.sqlite3</code>. Sur les 92 chants test (10 graines), ils atteignent 78,7 à 78,9 %, contre 84,8 à 86,1 % sur l'audio, et reconnaissent la fin du chant dans 0 à 3 % des cas, contre 7 à 14 %.</p>
+<h2>Les études changent peu entre octobre et novembre, et les étiquettes, de phrase ou de syllabe, donnent 5 à 8 points de moins que l'audio</h2>
+<p>Meilleure exactitude en validation croisée de chaque étude ridge (« last » → « last », 400 essais). Octobre : <code>outputs/next_phrase/hpo/marron1_before_annotation_relabels_db.sqlite3</code>. Novembre : <code>outputs/next_phrase/hpo/marron1_db.sqlite3</code>. Les réservoirs sur les étiquettes ont leurs propres études, du 23 novembre avec fuite et du 24 novembre sans fuite : <code>outputs/next_phrase_labels/hpo/marron1_db.sqlite3</code>. Sur les 92 chants test (10 graines), ils atteignent 78,5 à 79,0 % avec ou sans fuite, contre 84,8 à 86,1 % sur l'audio, et reconnaissent la fin du chant dans 0 à 3 % des cas, contre 7 à 14 %. Les réservoirs sur les syllabes ont 48 études du 24 novembre, avec et sans fuite : <code>outputs/next_syllable/hpo/marron1_db.sqlite3</code>. Lu tel quel (orange), leur readout prédit presque toujours la syllabe en cours, qui se répète dans la phrase : 20 à 22 % sans fuite, 31 à 35 % avec. L'axe commence donc à 15 %.</p>
 <div class="row">
 <div>
-<div class="legend">
-<span><span class="sq" style="background:var(--old)"></span>26 et 27 octobre, anciennes annotations</span>
-<span><span class="sq" style="background:var(--res)"></span>10 et 11 novembre, annotations actuelles</span>
-<span><span class="sq" style="background:var(--lab)"></span>23 novembre, réservoir sur les étiquettes, annotations actuelles</span>
+<div style="display:flex;align-items:flex-start;gap:0 24px">
+<div class="legend" style="gap:6px 24px;flex:1 1 0;min-width:0">
+<span style="gap:10px;white-space:nowrap">Audio : <span class="pick" data-series="0"><span class="sq" style="background:var(--old)"></span>octobre</span><span class="pick" data-series="1"><span class="sq" style="background:var(--res)"></span>novembre</span></span>
+<span style="gap:10px;white-space:nowrap">Étiquettes : <span class="pick" data-series="2"><span class="sq" style="background:var(--lab)"></span>de phrase</span></span>
+<span style="gap:10px;white-space:nowrap">Syllabes : <span class="pick" data-series="3"><span class="sq" style="background:var(--syl)"></span>tel quel</span><span class="pick" data-series="4"><span class="sq" style="background:var(--syl2)"></span>changement connu</span><span class="pick" data-series="5"><span class="sq" style="background:var(--phr)"></span>fins de phrase</span></span>
 </div>
-<div class="box" style="height:500px"><canvas id="studies" role="img" aria-label="Meilleure exactitude en validation croisée des 16 études sur l'audio, octobre et novembre, et des 8 études sur les étiquettes">Avec fuite, random_ei 1000 : 86,55 % puis 86,87 % sur l'audio, 79,26 % sur les étiquettes. Sans fuite, var_hag 1000 : 83,80 % puis 85,45 %.</canvas></div>
+<div class="legend" style="flex-direction:column;align-items:flex-end;gap:6px;flex:none;white-space:nowrap"><span style="gap:4px">Fuite : <span class="pick leak" data-leak="all">tous</span><span class="pick leak" data-leak="leak">avec</span><span class="pick leak" data-leak="noleak">sans</span></span><span style="gap:4px">Neurones : <span class="pick size" data-size="all">tous</span><span class="pick size" data-size="500">500</span><span class="pick size" data-size="1000">1000</span></span><span style="gap:4px">Score : <span class="pick score" data-score="cv">validation croisée</span><span class="pick score" data-score="test">test</span></span></div>
+</div>
+<div class="box" id="studiesBox" style="height:1150px"><canvas id="studies" role="img" aria-label="Meilleure exactitude en validation croisée des 16 études sur l'audio, octobre et novembre, , des 16 études sur les étiquettes et des 48 études sur les syllabes">Avec fuite, random_ei 1000 : 86,55 % puis 86,87 % sur l'audio, 79,26 % sur les étiquettes. Sans fuite, var_hag 1000 : 83,80 % puis 85,45 %.</canvas></div>
 </div>
 <figure>
 <figcaption><span class="sq" style="background:var(--res)"></span>Modèle 1 : un réservoir et un readout ridge</figcaption>
 <p>Le réservoir écoute tout le chant. À la fin de chaque phrase, le readout lit son état et prédit la phrase suivante.</p>
-<svg class="model" viewBox="0 0 340 448" role="img" aria-label="Schéma : le réservoir de 500 ou 1 000 neurones lit soit les 13 MFCC de l'audio, un pas par trame (modèle 1, en vert), soit l'étiquette de chaque phrase, un pas par phrase (modèle 1 bis, en jaune) ; à la fin de chaque phrase, un readout ridge lit l'état du réservoir et donne la phrase suivante parmi 29 classes">
+<svg class="model" viewBox="0 0 420 486" role="img" aria-label="Schéma : le réservoir de 500 ou 1 000 neurones lit soit les 13 MFCC de l'audio, un pas par trame (modèle 1, en vert), soit l'étiquette de chaque phrase, un pas par phrase (modèle 1 bis, en jaune), soit l'étiquette de chaque syllabe, un pas par syllabe (modèle 1 ter, en orange et rouge) ; à la fin de chaque phrase, un readout ridge lit l'état du réservoir et donne la phrase suivante parmi 29 classes ; pour les syllabes, le readout apprend soit la syllabe suivante à chaque pas, soit la phrase suivante aux fins de phrase">
 <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="s-head" d="M0 0L10 5L0 10z"/></marker>
-<linearGradient id="greenYellow" gradientUnits="userSpaceOnUse" x1="50" y1="0" x2="290" y2="0"><stop offset="0" style="stop-color:var(--res)"/><stop offset="1" style="stop-color:var(--lab)"/></linearGradient>
-<linearGradient id="greenYellowDown" gradientUnits="userSpaceOnUse" x1="0" y1="6" x2="0" y2="44"><stop offset="0" style="stop-color:var(--res)"/><stop offset="1" style="stop-color:var(--lab)"/></linearGradient></defs>
-<rect class="s-fill" x="14" y="12" width="72" height="26" rx="4"/><rect class="s-fill" x="90" y="12" width="72" height="26" rx="4"/><rect class="s-fill" x="166" y="12" width="72" height="26" rx="4"/>
-<rect class="s-dash" x="246" y="12" width="72" height="26" rx="4"/>
-<text class="s-t" x="50" y="29">J1</text><text class="s-t" x="126" y="29">J2</text><text class="s-t" x="202" y="29">B1</text><text class="s-t" x="282" y="29">?</text>
-<line class="s-key" stroke="url(#greenYellowDown)" x1="242" y1="6" x2="242" y2="44"/>
-<text class="s-m" x="170" y="58">phrases du chant ; trait vert et jaune : fin de la phrase B1</text>
-<line class="s-line" x1="90" y1="66" x2="90" y2="84" marker-end="url(#ah)"/><line class="s-line" x1="250" y1="66" x2="250" y2="84" marker-end="url(#ah)"/>
-<rect class="s-res" x="14" y="86" width="152" height="44" rx="6"/><text class="s-t" x="90" y="104">13 MFCC de l'audio</text><text class="s-m" x="90" y="120">un pas par trame</text>
-<rect class="s-lab" x="174" y="86" width="152" height="44" rx="6"/><text class="s-t" x="250" y="104">étiquette de la phrase</text><text class="s-m" x="250" y="120">un pas par phrase</text>
-<line class="s-line" x1="90" y1="130" x2="90" y2="150" marker-end="url(#ah)"/><line class="s-line" x1="250" y1="130" x2="250" y2="150" marker-end="url(#ah)"/>
-<g transform="translate(0,12)">
+<linearGradient id="greenYellow" gradientUnits="userSpaceOnUse" x1="90" y1="0" x2="330" y2="0"><stop offset="0" style="stop-color:var(--res)"/><stop offset=".5" style="stop-color:var(--lab)"/><stop offset=".8" style="stop-color:var(--syl)"/><stop offset="1" style="stop-color:var(--phr)"/></linearGradient>
+<linearGradient id="greenYellowDown" gradientUnits="userSpaceOnUse" x1="0" y1="6" x2="0" y2="44"><stop offset="0" style="stop-color:var(--res)"/><stop offset=".5" style="stop-color:var(--lab)"/><stop offset="1" style="stop-color:var(--syl)"/></linearGradient></defs>
+<rect class="s-fill" x="54" y="12" width="72" height="26" rx="4"/><rect class="s-fill" x="130" y="12" width="72" height="26" rx="4"/><rect class="s-fill" x="206" y="12" width="72" height="26" rx="4"/>
+<rect class="s-dash" x="286" y="12" width="72" height="26" rx="4"/>
+<text class="s-t" x="90" y="29">J1</text><text class="s-t" x="166" y="29">J2</text><text class="s-t" x="242" y="29">B1</text><text class="s-t" x="322" y="29">?</text>
+<line class="s-key" stroke="url(#greenYellowDown)" x1="282" y1="6" x2="282" y2="44"/>
+<text class="s-m" x="210" y="58">phrases du chant ; trait de couleur : fin de la phrase B1</text>
+<line class="s-line" x1="72" y1="66" x2="72" y2="84" marker-end="url(#ah)"/><line class="s-line" x1="210" y1="66" x2="210" y2="84" marker-end="url(#ah)"/><line class="s-line" x1="348" y1="66" x2="348" y2="84" marker-end="url(#ah)"/>
+<rect class="s-res" x="8" y="86" width="128" height="44" rx="6"/><text class="s-t" x="72" y="104">13 MFCC de l'audio</text><text class="s-m" x="72" y="120">un pas par trame</text>
+<rect class="s-lab" x="146" y="86" width="128" height="44" rx="6"/><text class="s-t" x="210" y="104">étiquette de phrase</text><text class="s-m" x="210" y="120">un pas par phrase</text>
+<rect class="s-syl" x="284" y="86" width="128" height="44" rx="6"/><text class="s-t" x="348" y="104">étiquette de syllabe</text><text class="s-m" x="348" y="120">un pas par syllabe</text>
+<line class="s-line" x1="72" y1="130" x2="150" y2="150" marker-end="url(#ah)"/><line class="s-line" x1="210" y1="130" x2="210" y2="150" marker-end="url(#ah)"/><line class="s-line" x1="348" y1="130" x2="270" y2="150" marker-end="url(#ah)"/>
+<g transform="translate(40,12)">
 <rect class="s-box" x="50" y="140" width="240" height="112" rx="14"/>
 <path class="s-thin" d="M92 172L140 160M140 160L196 176M196 176L246 164M92 172L118 214M118 214L170 204M170 204L196 176M170 204L226 220M226 220L246 164M140 160L170 204M118 214L92 172"/>
 <path class="s-thin" d="M246 164c22 -18 22 18 0 6" marker-end="url(#ah)"/>
@@ -89,10 +94,30 @@ table.t th{font-weight:500;color:var(--ink2)}
 <rect class="s-box" x="70" y="328" width="200" height="32" rx="6"/><text class="s-t" x="170" y="348">readout linéaire (ridge)</text>
 <line class="s-line" x1="170" y1="360" x2="170" y2="380" marker-end="url(#ah)"/>
 <rect class="s-key" stroke="url(#greenYellow)" x="50" y="382" width="240" height="44" rx="6"/><text class="s-t" x="170" y="400">phrase suivante</text><text class="s-m" x="170" y="416">29 classes : les phrases, call et END</text>
+<text class="s-m" x="170" y="446">sur les syllabes, le readout apprend chaque syllabe</text><text class="s-m" x="170" y="462">(orange) ou les fins de phrase seulement (rouge)</text>
 </g>
 </svg>
 <figcaption style="margin-top:22px"><span class="sq" style="background:var(--lab)"></span>Modèle 1 bis : le même réservoir sur les étiquettes</figcaption>
 <p>Le réservoir ne lit pas l'audio. Il avance d'un pas par phrase et reçoit la vraie étiquette de cette phrase, à la place des 13 MFCC. Le readout lit son état après chaque phrase.</p>
+<figcaption style="margin-top:22px"><span class="sq" style="background:var(--syl)"></span><span class="sq" style="background:var(--syl2)"></span><span class="sq" style="background:var(--phr)"></span>Modèle 1 ter : le même réservoir sur les syllabes</figcaption>
+<p>Le réservoir avance d'un pas par syllabe et reçoit l'étiquette de sa phrase. Son readout apprend la syllabe suivante, lue telle quelle (orange) ou en sachant que la phrase change (orange clair), ou seulement la phrase suivante (rouge).</p>
+<svg class="model" style="max-width:420px" viewBox="0 0 420 262" role="img" aria-label="Exemple fictif : une phrase B1 de cinq syllables b puis une phrase J2. Le readout des syllabes apprend à chaque pas la syllabe suivante, b dans la phrase, j à sa dernière syllabe ; celui des fins de phrase n'apprend qu'à la dernière syllabe. À la fin de B1, le score de b reste le plus grand : lu tel quel, le readout prédit que la phrase continue ; en sachant que la phrase change, il prédit J2.">
+<text class="s-m" x="195" y="13">phrase B1</text><text class="s-m" x="347" y="13">phrase J2</text>
+<rect class="s-fill" x="100" y="20" width="36" height="22" rx="4"/><text class="s-t" x="118" y="35">b</text><rect class="s-fill" x="138" y="20" width="36" height="22" rx="4"/><text class="s-t" x="156" y="35">b</text><rect class="s-fill" x="176" y="20" width="36" height="22" rx="4"/><text class="s-t" x="194" y="35">b</text><rect class="s-fill" x="214" y="20" width="36" height="22" rx="4"/><text class="s-t" x="232" y="35">b</text><rect class="s-fill" x="252" y="20" width="36" height="22" rx="4"/><text class="s-t" x="270" y="35">b</text><rect class="s-fill" x="290" y="20" width="36" height="22" rx="4"/><text class="s-t" x="308" y="35">j</text><rect class="s-fill" x="328" y="20" width="36" height="22" rx="4"/><text class="s-t" x="346" y="35">j</text><rect class="s-fill" x="366" y="20" width="36" height="22" rx="4"/><text class="s-t" x="384" y="35">j</text>
+<line x1="290" y1="16" x2="290" y2="104" style="stroke:var(--phr);stroke-width:1.6;stroke-dasharray:3 3"/>
+<text class="s-m" x="92" y="35" style="text-anchor:end">entrée</text>
+<text class="s-m" x="8" y="58" style="text-anchor:start">cible du readout à chaque pas :</text>
+<rect x="8" y="64" width="9" height="9" rx="2" style="fill:var(--syl)"/><rect x="20" y="64" width="9" height="9" rx="2" style="fill:var(--syl2)"/><text class="s-m" x="92" y="72" style="text-anchor:end">syllabes</text><text class="s-m" x="118" y="72">b</text><text class="s-m" x="156" y="72">b</text><text class="s-m" x="194" y="72">b</text><text class="s-m" x="232" y="72">b</text><text class="s-t" x="270" y="72">j</text><text class="s-m" x="308" y="72">j</text><text class="s-m" x="346" y="72">j</text><text class="s-m" x="384" y="72">END</text>
+<rect x="8" y="88" width="9" height="9" rx="2" style="fill:var(--phr)"/><text class="s-m" x="92" y="96" style="text-anchor:end">fins de phrase</text><text class="s-m" x="118" y="96">·</text><text class="s-m" x="156" y="96">·</text><text class="s-m" x="194" y="96">·</text><text class="s-m" x="232" y="96">·</text><text class="s-t" x="270" y="96">J2</text><text class="s-m" x="308" y="96">·</text><text class="s-m" x="346" y="96">·</text><text class="s-m" x="384" y="96">END</text>
+<text class="s-m" x="8" y="128" style="text-anchor:start">scores du readout des syllabes à la fin de B1 :</text>
+<text class="s-t" x="92" y="148" style="text-anchor:end">b (B1)</text><rect class="s-bar" x="100" y="138" width="186" height="13" rx="3"/><text class="s-m" x="292" y="148" style="text-anchor:start">0,62</text>
+<text class="s-t" x="92" y="168" style="text-anchor:end">j (J2)</text><rect class="s-bar" x="100" y="158" width="90" height="13" rx="3"/><text class="s-m" x="196" y="168" style="text-anchor:start">0,30</text>
+<text class="s-t" x="92" y="188" style="text-anchor:end">autres</text><rect class="s-bar" x="100" y="178" width="24" height="13" rx="3"/><text class="s-m" x="130" y="188" style="text-anchor:start">0,08</text>
+<rect x="8" y="207" width="9" height="9" rx="2" style="fill:var(--syl)"/><text class="s-t" x="24" y="215" style="text-anchor:start">tel quel : le plus grand score, b. Faux : la phrase continuerait.</text>
+<rect x="8" y="227" width="9" height="9" rx="2" style="fill:var(--syl2)"/><text class="s-t" x="24" y="235" style="text-anchor:start">changement connu : le plus grand score hors b, J2.</text>
+<rect x="8" y="247" width="9" height="9" rx="2" style="fill:var(--phr)"/><text class="s-t" x="24" y="255" style="text-anchor:start">fins de phrase : un autre readout, appris à ces pas, J2.</text>
+</svg>
+<p style="margin-top:6px">Exemple fictif. Dans une phrase, la syllabe suivante est presque toujours la même : le readout des syllabes apprend surtout que la phrase continue.</p>
 </figure>
 </div>
 
@@ -182,8 +207,19 @@ const studies = [...models.map(m => 'fuite · ' + m), ...models.map(m => 'sans f
 // best cross-validation accuracy (%) of each study: October (old annotations), November (current annotations)
 const october = [85.26, 85.83, 85.53, 86.33, 85.54, 86.30, 85.90, 86.55, 83.75, 84.39, 83.31, 83.80, 78.84, 81.19, 81.64, 83.57];
 const november = [85.63, 86.00, 85.54, 86.37, 85.79, 86.62, 86.13, 86.87, 83.58, 84.35, 83.10, 85.45, 78.85, 81.16, 82.09, 83.85];
-// the reservoirs that read the labels: studies with leak only
-const labelStudies = [79.39, 79.39, 79.11, 79.17, 79.19, 79.25, 79.25, 79.26, ...models.map(() => null)];
+// the reservoirs that read the labels (outputs/next_phrase_labels/hpo/marron1_db.sqlite3), same order as studies
+const labelStudies = [79.39, 79.39, 79.11, 79.17, 79.19, 79.25, 79.25, 79.26, 79.26, 79.34, 79.20, 79.25, 79.16, 79.11, 79.10, 79.08];
+// the reservoirs that read the syllables (outputs/next_syllable/hpo/marron1_db.sqlite3), same order as studies
+const syllableChange = [79.84, 80.08, 77.59, 77.63, 79.30, 79.80, 79.51, 79.76, 79.59, 80.02, 78.41, 79.64, 78.38, 78.50, 78.27, 78.72];
+const syllablePhrases = [81.16, 81.36, 81.15, 81.11, 80.62, 80.61, 81.18, 81.30, 81.02, 80.91, 80.78, 80.79, 79.18, 79.59, 80.04, 80.30];
+// mean accuracy on the 92 test songs (10 seeds, outputs/<study>/performances/*_hpo.csv), same order as studies;
+// the October studies have no evaluation on the test songs; the syllables "change known" are scored knowing the change
+const testNovember = [85.06, 85.41, 84.78, 85.70, 84.88, 85.96, 85.10, 86.12, 82.33, 83.24, 81.32, 84.19, 77.10, 79.38, 79.09, 81.87];
+const testLabels = [78.91, 78.80, 78.73, 78.72, 78.76, 78.71, 78.73, 78.78, 78.70, 78.53, 78.80, 78.85, 78.90, 78.77, 78.81, 78.96];
+const testRaw = [31.59, 31.79, 30.24, 30.11, 32.19, 32.48, 30.79, 31.10, 18.84, 20.28, 18.18, 17.60, 18.65, 18.70, 17.90, 18.83];
+const testChange = [78.54, 79.52, 76.44, 76.48, 78.07, 78.47, 78.50, 79.06, 78.69, 79.18, 76.63, 78.13, 76.74, 76.71, 76.31, 76.76];
+const testPhrases = [80.32, 80.77, 80.42, 80.46, 80.24, 80.40, 80.94, 80.95, 80.23, 80.32, 79.79, 80.27, 77.68, 78.46, 78.89, 79.52];
+const syllableRaw = [33.66, 34.09, 31.34, 31.40, 34.32, 34.62, 32.48, 33.32, 20.81, 22.35, 20.14, 20.75, 20.03, 20.28, 19.73, 21.00];
 // test accuracy (%) of the n-grams, orders 1 to 10 then adaptive
 // orders 1 to 10, then 15, 20, 30 and 50 (on all the songs only), then adaptive ('': a gap before the adaptive one)
 const orders = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '15', '20', '30', '50', '', 'adaptatif'];
@@ -203,21 +239,55 @@ const rankAll = {1: [32.2, 24.0, 10.5, 7.2, 9.8, 5.5, 13.8, 19.9, 14.4, 20.9, 21
   30: [32.2, 23.5, 8.7, 5.4, 7.0, 3.9, 10.5, 10.6, 7.0, 13.4, 12.7, 22.5, 22.6, 14.5, 14.1, 15.5, 11.9, 10.4, 4.5, 7.7, 8.0, 5.3, 2.3, 2.5, 2.9, 2.6, 1.2, 1.7, 0.4, 0.4, 0.0, 0.5, 0.5, 1.1, 1.2, 0.0, 0.0, 0.8, 0.0, 1.8]};
 const allSongs = [459, 459, 459, 459, 458, 456, 456, 453, 443, 441, 432, 422, 407, 394, 389, 368, 354, 338, 331, 323, 313, 303, 298, 280, 273, 265, 250, 241, 233, 224, 211, 198, 191, 180, 171, 158, 143, 133, 119, 110];
 let charts = [];
+const chosenSeries = new Set(), chosenStudies = new Set();  // the highlighted bars of the studies chart, empty for all
+const studyFaded = j => chosenStudies.size > 0 && !chosenStudies.has(j);
+const faded = (series, row) => (chosenSeries.size > 0 && !chosenSeries.has(series)) || studyFaded(shown()[row]);
+function toggle(chosen, value) {  // a click adds the value to the highlighted ones, a second click removes it
+  if (chosen.has(value)) chosen.delete(value); else chosen.add(value);
+  document.querySelectorAll('.pick[data-series]').forEach(el => {
+    el.classList.toggle('on', chosenSeries.has(+el.dataset.series));
+    el.classList.toggle('off', chosenSeries.size > 0 && !chosenSeries.has(+el.dataset.series));
+  });
+  charts[0].update();
+}
+document.querySelectorAll('.pick[data-series]').forEach(el => el.addEventListener('click', () => toggle(chosenSeries, +el.dataset.series)));
+let leakShown = 'leak', sizeShown = '500', scoreShown = 'cv';  // the studies shown: leak 'all', 'leak' or 'noleak'; size 'all', '500' or '1000'
+const shown = () => studies.map((_, j) => j).filter(j => (leakShown === 'all' || (leakShown === 'leak') === studies[j].startsWith('fuite'))
+  && (sizeShown === 'all' || studies[j].endsWith(' ' + sizeShown)));
+const rows = values => shown().map(j => values[j]);
+function showStudies(leak, size) {
+  leakShown = leak; sizeShown = size;
+  document.querySelectorAll('.leak').forEach(el => el.classList.toggle('on', el.dataset.leak === leak));
+  document.querySelectorAll('.size').forEach(el => el.classList.toggle('on', el.dataset.size === size));
+  document.querySelectorAll('.score').forEach(el => el.classList.toggle('on', el.dataset.score === scoreShown));
+  document.getElementById('studiesBox').style.height = (shown().length * 66 + 94) + 'px';
+  draw();
+}
+document.querySelectorAll('.leak').forEach(el => el.addEventListener('click', () => showStudies(el.dataset.leak, sizeShown)));
+document.querySelectorAll('.size').forEach(el => el.addEventListener('click', () => showStudies(leakShown, el.dataset.size)));
+document.querySelectorAll('.score').forEach(el => el.addEventListener('click', () => { scoreShown = el.dataset.score; showStudies(leakShown, sizeShown); }));
 function draw() {
   charts.forEach(c => c.destroy());
-  const ink = css('--muted'), grid = css('--grid'), old = css('--old'), now = css('--new'), res = css('--res'), all = css('--all'), pale = css('--pale'), lab = css('--lab');
+  const ink = css('--muted'), grid = css('--grid'), old = css('--old'), now = css('--new'), res = css('--res'), all = css('--all'), pale = css('--pale'), lab = css('--lab'), syl = css('--syl'), syl2 = css('--syl2'), phr = css('--phr');
   const percent = c => `${c.dataset.label} : ${c.parsed.y.toFixed(1)} %`;
   const line = (label, data, color, dash, width) => ({label, data, borderColor: color, backgroundColor: color, borderDash: dash, borderWidth: width, pointRadius: 0, pointHoverRadius: 4});
   charts = [
     new Chart(document.getElementById('studies'), {type: 'bar',
-      data: {labels: studies, datasets: [
-        {label: 'audio, octobre', data: october, backgroundColor: old, borderRadius: 3, maxBarThickness: 12, skipNull: true},
-        {label: 'audio, novembre', data: november, backgroundColor: res, borderRadius: 3, maxBarThickness: 12, skipNull: true},
-        {label: 'étiquettes, novembre', data: labelStudies, backgroundColor: lab, borderRadius: 3, maxBarThickness: 12, skipNull: true}]},
-      options: {indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      data: {labels: rows(studies), datasets: [
+        {label: 'audio, octobre', data: rows(scoreShown === 'cv' ? october : october.map(() => null)), backgroundColor: c => faded(0, c.dataIndex) ? old + '30' : old, borderRadius: 3, maxBarThickness: 12, skipNull: true},
+        {label: 'audio, novembre', data: rows(scoreShown === 'cv' ? november : testNovember), backgroundColor: c => faded(1, c.dataIndex) ? res + '30' : res, borderRadius: 3, maxBarThickness: 12, skipNull: true},
+        {label: 'étiquettes, novembre', data: rows(scoreShown === 'cv' ? labelStudies : testLabels), backgroundColor: c => faded(2, c.dataIndex) ? lab + '30' : lab, borderRadius: 3, maxBarThickness: 12, skipNull: true},
+        {label: 'syllabes, lu tel quel', data: rows(scoreShown === 'cv' ? syllableRaw : testRaw), backgroundColor: c => faded(3, c.dataIndex) ? syl + '30' : syl, borderRadius: 3, maxBarThickness: 12},
+        {label: 'syllabes, changement connu', data: rows(scoreShown === 'cv' ? syllableChange : testChange), backgroundColor: c => faded(4, c.dataIndex) ? syl2 + '30' : syl2, borderRadius: 3, maxBarThickness: 12},
+        {label: 'syllabes, fins de phrase', data: rows(scoreShown === 'cv' ? syllablePhrases : testPhrases), backgroundColor: c => faded(5, c.dataIndex) ? phr + '30' : phr, borderRadius: 3, maxBarThickness: 12}]},
+      plugins: [{id: 'groupGaps', afterDatasetsUpdate: chart => {  // a small gap between audio, labels and syllables
+        const group = [0, 0, 1, 2, 2, 2], gap = 4;
+        chart.data.datasets.forEach((_, i) => chart.getDatasetMeta(i).data.forEach(bar => { bar.y += (group[i] - 1) * gap; }));
+      }}],
+      options: {indexAxis: 'y', responsive: true, maintainAspectRatio: false, animation: false, datasets: {bar: {categoryPercentage: 0.72}},
         plugins: {legend: {display: false}, tooltip: {callbacks: {label: c => `${c.dataset.label} : ${c.parsed.x.toFixed(2)} %`}}},
-        scales: {x: {min: 76, max: 88, title: {display: true, text: 'meilleure exactitude en validation croisée (%)', color: ink}, ticks: {color: ink}, grid: {color: grid}},
-                 y: {ticks: {color: ink, font: {size: 11}, autoSkip: false}, grid: {display: false}}}}}),
+        scales: {x: {min: 15, max: 88, title: {display: true, text: scoreShown === 'cv' ? 'meilleure exactitude en validation croisée (%)' : 'exactitude moyenne sur les chants test, 10 graines (%)', color: ink}, ticks: {color: ink}, grid: {color: grid}},
+                 y: {ticks: {color: c => studyFaded(shown()[c.index]) ? grid : ink, font: {size: 11}, autoSkip: false}, grid: {display: false}}}}}),
     new Chart(document.getElementById('ngrams'), {type: 'line',
       data: {labels: orders, datasets: [
         {label: 'n-gramme, test', data: ngramsNew, borderColor: now, backgroundColor: now, borderWidth: 2, pointRadius: 4},
@@ -241,7 +311,17 @@ function draw() {
         scales: {x: {title: {display: true, text: 'rang de la phrase prédite dans le chant (1 = première phrase)', color: ink}, ticks: {color: ink, autoSkip: true, maxTicksLimit: 14}, grid: {display: false}},
                  y: {min: 0, max: 45, title: {display: true, text: 'erreur (%)', color: ink}, ticks: {color: ink}, grid: {color: grid}}}}})];
 }
-draw();
+showStudies('leak', '500');
+const studiesCanvas = document.getElementById('studies');
+const studyAt = event => {  // the study whose name is under the mouse, or null
+  const chart = charts[0], box = studiesCanvas.getBoundingClientRect();
+  const x = event.clientX - box.left, y = event.clientY - box.top;
+  if (x >= chart.chartArea.left || y < chart.chartArea.top || y > chart.chartArea.bottom) return null;
+  const j = Math.round(chart.scales.y.getValueForPixel(y));
+  return j >= 0 && j < shown().length ? shown()[j] : null;
+};
+studiesCanvas.addEventListener('click', event => { const j = studyAt(event); if (j !== null) toggle(chosenStudies, j); });
+studiesCanvas.addEventListener('mousemove', event => { studiesCanvas.style.cursor = studyAt(event) === null ? '' : 'pointer'; });
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', draw);
 </script>
 </body>

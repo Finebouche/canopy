@@ -19,14 +19,15 @@ their names, their storage, the cross-validation.
 (CANOPY_TASK: the study optimized by slurm/canary.sbatch, "boundaries", "next_phrase" or "syllables"; the scripts of the
 studies do not read it.)
 
-The studies of canopy.studies ("phrase_boundaries", "next_phrase", "next_phrase_labels", "syllables_classification")
+The studies of canopy.studies ("phrase_boundaries", "next_phrase", "next_phrase_labels", "next_syllable",
+"syllables_classification")
 write in one folder each,
 outputs/<study> (outputs_dir): hpo/ (one Optuna database per dataset with all the Optuna studies of the reservoirs,
 database), performances/ (the results of the final evaluations), analysis/, figures/; the generations, in
 outputs/syllable_generation and outputs/song_generation.
 Optuna studies: PREFIXES[study] + "<model>_<size>" (study_name): the phrase boundaries without prefix,
-"next_phrase_[calls_][reset_][leak_]", "next_phrase_labels_[calls_][durations_][leak_]" and
-"syllables_[gains_][leak_]".
+"next_phrase_[calls_][reset_][leak_]", "next_phrase_labels_[calls_][durations_][leak_]",
+"next_syllable_calls_[phrases_][change_][leak_]" and "syllables_[gains_][leak_]".
 """
 import os
 from pathlib import Path
@@ -38,6 +39,14 @@ CALLS = os.environ.get("CANOPY_WITH_CALLS") == "1"
 RESET = os.environ.get("CANOPY_RESET_EACH_PHRASE") == "1"
 INPUT_GAINS = os.environ.get("CANOPY_SEARCH_INPUT_GAINS") == "1"
 LABELS_WITH_DURATIONS = os.environ.get("CANOPY_LABELS_WITH_DURATIONS") == "1"
+# (canopy.studies.next_syllable: the readout trained on the next syllable of every step, "syllables", or on the next
+# phrase at the ends of the phrases only, "phrases"; the score of its studies at the ends of the phrases, "raw" or
+# knowing that the phrase changes, "change_known")
+SYLLABLE_READOUT = os.environ.get("CANOPY_SYLLABLE_READOUT", "syllables")
+SYLLABLE_SCORE = os.environ.get("CANOPY_SYLLABLE_SCORE", "raw")
+if SYLLABLE_READOUT not in ("syllables", "phrases") or SYLLABLE_SCORE not in ("raw", "change_known"):
+    raise ValueError(f"CANOPY_SYLLABLE_READOUT={SYLLABLE_READOUT} (syllables or phrases), "
+                     f"CANOPY_SYLLABLE_SCORE={SYLLABLE_SCORE} (raw or change_known)")
 N_TRIALS = int(os.environ.get("CANOPY_N_TRIALS", 400))
 WORKERS = int(os.environ.get("CANOPY_WORKERS", 1))
 JOB_STUDIES = os.environ.get("CANOPY_JOB_STUDIES_DIR")
@@ -54,6 +63,8 @@ PREFIXES = {"phrase_boundaries": "",  # (the boundary studies have no variant: n
             "next_phrase": "next_phrase_" + "calls_" * CALLS + "reset_" * RESET + "leak_" * LEAK,
             "next_phrase_labels": ("next_phrase_labels_" + "calls_" * CALLS + "durations_" * LABELS_WITH_DURATIONS
                                    + "leak_" * LEAK),
+            "next_syllable": ("next_syllable_" + "calls_" * CALLS + "phrases_" * (SYLLABLE_READOUT == "phrases")
+                              + "change_" * (SYLLABLE_SCORE == "change_known") + "leak_" * LEAK),
             "syllables_classification": "syllables_" + "gains_" * INPUT_GAINS + "leak_" * LEAK}
 
 

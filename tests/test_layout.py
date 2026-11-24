@@ -1,15 +1,17 @@
 """
 Layout of canopy (CLAUDE.md, README): one folder per study in canopy/studies, each file of a study importing only the
 shared modules (settings, common, datasets, models, studies.common) and the files of its own study; task.py imports
-only the shared modules; the song generator builds on the next phrase and the generation of syllables, and the
-control next_phrase_labels on the next phrase.
+only the shared modules; the song generator builds on the next phrase and the generation of syllables, the
+control next_phrase_labels on the next phrase, and the control next_syllable on the next phrase and on the segmentation
+of the syllables of syllable_generation.
 """
 import ast
 from pathlib import Path
 
 PACKAGE = Path(__file__).resolve().parents[1] / "canopy"
 SHARED = ("canopy.settings", "canopy.common", "canopy.datasets", "canopy.models", "canopy.studies.common")
-BUILDS_ON = {"song_generation": ("next_phrase", "syllable_generation"), "next_phrase_labels": ("next_phrase",)}
+BUILDS_ON = {"song_generation": ("next_phrase", "syllable_generation"), "next_phrase_labels": ("next_phrase",),
+             "next_syllable": ("next_phrase", "syllable_generation")}
 
 
 def imports(path):
