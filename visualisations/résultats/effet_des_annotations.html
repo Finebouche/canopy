@@ -46,13 +46,13 @@ table.t th{font-weight:500;color:var(--ink2)}
 .note{font-size:13px}
 </style>
 </head>
-<body>
+<body><style id="home-link-style">.home-link{display:inline-flex;vertical-align:-0.08em;margin-right:.4em;color:inherit;text-decoration:none}@media print{.home-link{display:none}}</style>
 <main>
-<h1>Phrase suivante : effet des annotations corrigées</h1>
-<p>marron1, avec les calls comme phrases. Les annotations ont été corrigées le 3 novembre 2026 (21 phrases) puis le 7 novembre (41 segments). Les études et les n-grammes ont été refaits ensuite.</p>
+<h1><a class="home-link" href="../index.html" title="Index des visualisations" aria-label="Index des visualisations"><svg viewBox="0 0 24 24" width="0.92em" height="0.92em" aria-hidden="true"><path d="M12 2.8 2 11.4h2.8V21h5.4v-6.2h3.6V21h5.4v-9.6H22z" fill="currentColor"/></svg></a>Phrase suivante : effet des annotations corrigées</h1>
+<p>marron1, avec les calls comme phrases. Les annotations ont été corrigées le 3 novembre 2026 (21 phrases) puis le 7 novembre (41 segments).</p>
 
 <h2>Les études changent peu entre octobre et novembre, et les étiquettes, de phrase ou de syllabe, donnent 5 à 8 points de moins que l'audio</h2>
-<p>Meilleure exactitude en validation croisée de chaque étude ridge (« last » → « last », 400 essais). Octobre : <code>outputs/next_phrase/hpo/marron1_before_annotation_relabels_db.sqlite3</code>. Novembre : <code>outputs/next_phrase/hpo/marron1_db.sqlite3</code>. Les réservoirs sur les étiquettes ont leurs propres études, du 23 novembre avec fuite et du 24 novembre sans fuite : <code>outputs/next_phrase_labels/hpo/marron1_db.sqlite3</code>. Sur les 92 chants test (10 graines), ils atteignent 78,5 à 79,0 % avec ou sans fuite, contre 84,8 à 86,1 % sur l'audio, et reconnaissent la fin du chant dans 0 à 3 % des cas, contre 7 à 14 %. Les réservoirs sur les syllabes ont 48 études du 24 novembre, avec et sans fuite : <code>outputs/next_syllable/hpo/marron1_db.sqlite3</code>. Lu tel quel (orange), leur readout prédit presque toujours la syllabe en cours, qui se répète dans la phrase : 20 à 22 % sans fuite, 31 à 35 % avec. L'axe commence donc à 15 %.</p>
+<p>Meilleure exactitude en validation croisée de chaque étude ridge (« last » → « last », 400 essais).</p>
 <div class="row">
 <div>
 <div style="display:flex;align-items:flex-start;gap:0 24px">
@@ -98,26 +98,28 @@ table.t th{font-weight:500;color:var(--ink2)}
 </g>
 </svg>
 <figcaption style="margin-top:22px"><span class="sq" style="background:var(--lab)"></span>Modèle 1 bis : le même réservoir sur les étiquettes</figcaption>
-<p>Le réservoir ne lit pas l'audio. Il avance d'un pas par phrase et reçoit la vraie étiquette de cette phrase, à la place des 13 MFCC. Le readout lit son état après chaque phrase.</p>
+<p>Le réservoir ne lit pas l'audio. Il avance d'un pas par phrase et reçoit la vraie étiquette de cette phrase, codée en one-hot, à la place des 13 MFCC. Le readout lit son état après chaque phrase.</p>
 <figcaption style="margin-top:22px"><span class="sq" style="background:var(--syl)"></span><span class="sq" style="background:var(--syl2)"></span><span class="sq" style="background:var(--phr)"></span>Modèle 1 ter : le même réservoir sur les syllabes</figcaption>
-<p>Le réservoir avance d'un pas par syllabe et reçoit l'étiquette de sa phrase. Son readout apprend la syllabe suivante, lue telle quelle (orange) ou en sachant que la phrase change (orange clair), ou seulement la phrase suivante (rouge).</p>
-<svg class="model" style="max-width:420px" viewBox="0 0 420 262" role="img" aria-label="Exemple fictif : une phrase B1 de cinq syllables b puis une phrase J2. Le readout des syllabes apprend à chaque pas la syllabe suivante, b dans la phrase, j à sa dernière syllabe ; celui des fins de phrase n'apprend qu'à la dernière syllabe. À la fin de B1, le score de b reste le plus grand : lu tel quel, le readout prédit que la phrase continue ; en sachant que la phrase change, il prédit J2.">
-<text class="s-m" x="195" y="13">phrase B1</text><text class="s-m" x="347" y="13">phrase J2</text>
-<rect class="s-fill" x="100" y="20" width="36" height="22" rx="4"/><text class="s-t" x="118" y="35">b</text><rect class="s-fill" x="138" y="20" width="36" height="22" rx="4"/><text class="s-t" x="156" y="35">b</text><rect class="s-fill" x="176" y="20" width="36" height="22" rx="4"/><text class="s-t" x="194" y="35">b</text><rect class="s-fill" x="214" y="20" width="36" height="22" rx="4"/><text class="s-t" x="232" y="35">b</text><rect class="s-fill" x="252" y="20" width="36" height="22" rx="4"/><text class="s-t" x="270" y="35">b</text><rect class="s-fill" x="290" y="20" width="36" height="22" rx="4"/><text class="s-t" x="308" y="35">j</text><rect class="s-fill" x="328" y="20" width="36" height="22" rx="4"/><text class="s-t" x="346" y="35">j</text><rect class="s-fill" x="366" y="20" width="36" height="22" rx="4"/><text class="s-t" x="384" y="35">j</text>
-<line x1="290" y1="16" x2="290" y2="104" style="stroke:var(--phr);stroke-width:1.6;stroke-dasharray:3 3"/>
-<text class="s-m" x="92" y="35" style="text-anchor:end">entrée</text>
-<text class="s-m" x="8" y="58" style="text-anchor:start">cible du readout à chaque pas :</text>
-<rect x="8" y="64" width="9" height="9" rx="2" style="fill:var(--syl)"/><rect x="20" y="64" width="9" height="9" rx="2" style="fill:var(--syl2)"/><text class="s-m" x="92" y="72" style="text-anchor:end">syllabes</text><text class="s-m" x="118" y="72">b</text><text class="s-m" x="156" y="72">b</text><text class="s-m" x="194" y="72">b</text><text class="s-m" x="232" y="72">b</text><text class="s-t" x="270" y="72">j</text><text class="s-m" x="308" y="72">j</text><text class="s-m" x="346" y="72">j</text><text class="s-m" x="384" y="72">END</text>
-<rect x="8" y="88" width="9" height="9" rx="2" style="fill:var(--phr)"/><text class="s-m" x="92" y="96" style="text-anchor:end">fins de phrase</text><text class="s-m" x="118" y="96">·</text><text class="s-m" x="156" y="96">·</text><text class="s-m" x="194" y="96">·</text><text class="s-m" x="232" y="96">·</text><text class="s-t" x="270" y="96">J2</text><text class="s-m" x="308" y="96">·</text><text class="s-m" x="346" y="96">·</text><text class="s-m" x="384" y="96">END</text>
-<text class="s-m" x="8" y="128" style="text-anchor:start">scores du readout des syllabes à la fin de B1 :</text>
-<text class="s-t" x="92" y="148" style="text-anchor:end">b (B1)</text><rect class="s-bar" x="100" y="138" width="186" height="13" rx="3"/><text class="s-m" x="292" y="148" style="text-anchor:start">0,62</text>
-<text class="s-t" x="92" y="168" style="text-anchor:end">j (J2)</text><rect class="s-bar" x="100" y="158" width="90" height="13" rx="3"/><text class="s-m" x="196" y="168" style="text-anchor:start">0,30</text>
-<text class="s-t" x="92" y="188" style="text-anchor:end">autres</text><rect class="s-bar" x="100" y="178" width="24" height="13" rx="3"/><text class="s-m" x="130" y="188" style="text-anchor:start">0,08</text>
-<rect x="8" y="207" width="9" height="9" rx="2" style="fill:var(--syl)"/><text class="s-t" x="24" y="215" style="text-anchor:start">tel quel : le plus grand score, b. Faux : la phrase continuerait.</text>
-<rect x="8" y="227" width="9" height="9" rx="2" style="fill:var(--syl2)"/><text class="s-t" x="24" y="235" style="text-anchor:start">changement connu : le plus grand score hors b, J2.</text>
-<rect x="8" y="247" width="9" height="9" rx="2" style="fill:var(--phr)"/><text class="s-t" x="24" y="255" style="text-anchor:start">fins de phrase : un autre readout, appris à ces pas, J2.</text>
+<p>Le réservoir avance d'un pas par syllabe et reçoit l'étiquette de sa phrase. Un readout est entraîné sur la syllabe suivante, à chaque pas, et lu de deux façons (orange, orange clair). Un autre est entraîné sur la phrase suivante, aux fins de phrase seulement (rouge). L'exactitude se compte toujours aux fins de phrase.</p>
+<svg class="model" style="max-width:420px" viewBox="0 0 420 412" role="img" aria-label="Exemple fictif : phrase B1 de cinq syllabes, puis phrase J2 de trois syllabes ; chaque syllabe porte l'étiquette de sa phrase. Entraînement : le readout des syllabes a une cible à chaque pas, la syllabe suivante (B1, B1, B1, B1, J2, J2, J2, END) ; le readout des fins de phrase n'a une cible qu'à la dernière syllabe de chaque phrase, la phrase suivante (J2, END). Performance : pour les trois lectures, seules les dernières syllabes des phrases sont évaluées, et la bonne réponse est la phrase suivante. À la fin de B1, le readout des syllabes donne 0,62 à B1 et 0,30 à J2 : lu tel quel, il prédit B1, faux ; en écartant B1, il prédit J2, juste.">
+<text class="s-t" x="8" y="14" style="text-anchor:start">1. Entraînement : la cible de chaque readout</text>
+<text class="s-m" x="157" y="31">phrase B1</text><text class="s-m" x="341" y="31">phrase J2</text>
+<rect class="s-fill" x="44" y="36" width="42" height="22" rx="4"/><text class="s-t" x="65" y="51">B1</text><rect class="s-fill" x="90" y="36" width="42" height="22" rx="4"/><text class="s-t" x="111" y="51">B1</text><rect class="s-fill" x="136" y="36" width="42" height="22" rx="4"/><text class="s-t" x="157" y="51">B1</text><rect class="s-fill" x="182" y="36" width="42" height="22" rx="4"/><text class="s-t" x="203" y="51">B1</text><rect class="s-fill" x="228" y="36" width="42" height="22" rx="4"/><text class="s-t" x="249" y="51">B1</text><rect class="s-fill" x="274" y="36" width="42" height="22" rx="4"/><text class="s-t" x="295" y="51">J2</text><rect class="s-fill" x="320" y="36" width="42" height="22" rx="4"/><text class="s-t" x="341" y="51">J2</text><rect class="s-fill" x="366" y="36" width="42" height="22" rx="4"/><text class="s-t" x="387" y="51">J2</text>
+<line x1="272" y1="24" x2="272" y2="60" style="stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3"/><line x1="272" y1="84" x2="272" y2="108" style="stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3"/><line x1="272" y1="296" x2="272" y2="320" style="stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3"/><line x1="272" y1="378" x2="272" y2="402" style="stroke:var(--muted);stroke-width:1;stroke-dasharray:3 3"/>
+<rect x="8" y="70" width="9" height="9" rx="2" style="fill:var(--syl)"/><rect x="20" y="70" width="9" height="9" rx="2" style="fill:var(--syl2)"/><text class="s-m" x="36" y="78" style="text-anchor:start">readout des syllabes : la syllabe suivante, à chaque pas</text>
+<rect x="46" y="86" width="38" height="20" rx="4" style="fill:none;stroke:var(--syl);stroke-width:1.2"/><text class="s-t" x="65" y="100">B1</text><rect x="92" y="86" width="38" height="20" rx="4" style="fill:none;stroke:var(--syl);stroke-width:1.2"/><text class="s-t" x="111" y="100">B1</text><rect x="138" y="86" width="38" height="20" rx="4" style="fill:none;stroke:var(--syl);stroke-width:1.2"/><text class="s-t" x="157" y="100">B1</text><rect x="184" y="86" width="38" height="20" rx="4" style="fill:none;stroke:var(--syl);stroke-width:1.2"/><text class="s-t" x="203" y="100">B1</text><rect x="230" y="86" width="38" height="20" rx="4" style="fill:none;stroke:var(--syl);stroke-width:1.2"/><text class="s-t" x="249" y="100">J2</text><rect x="276" y="86" width="38" height="20" rx="4" style="fill:none;stroke:var(--syl);stroke-width:1.2"/><text class="s-t" x="295" y="100">J2</text><rect x="322" y="86" width="38" height="20" rx="4" style="fill:none;stroke:var(--syl);stroke-width:1.2"/><text class="s-t" x="341" y="100">J2</text><rect x="368" y="86" width="38" height="20" rx="4" style="fill:none;stroke:var(--syl);stroke-width:1.2"/><text class="s-t" x="387" y="100">END</text>
+<text class="s-m" x="36" y="128" style="text-anchor:start">ses scores à la fin de B1, lus de deux façons :</text>
+<text class="s-t" x="60" y="148" style="text-anchor:end">B1</text><rect class="s-bar" x="68" y="138" width="186" height="13" rx="3"/><text class="s-m" x="260" y="148" style="text-anchor:start">0,62</text>
+<text class="s-t" x="60" y="168" style="text-anchor:end">J2</text><rect class="s-bar" x="68" y="158" width="90" height="13" rx="3"/><text class="s-m" x="164" y="168" style="text-anchor:start">0,30</text>
+<rect x="36" y="182" width="9" height="9" rx="2" style="fill:var(--syl)"/><text class="s-t" x="52" y="190" style="text-anchor:start">tel quel : B1, le plus grand score. Faux.</text>
+<rect x="36" y="202" width="9" height="9" rx="2" style="fill:var(--syl2)"/><text class="s-t" x="52" y="210" style="text-anchor:start">changement connu : on écarte B1, il reste J2. Juste.</text>
+<text class="s-m" x="36" y="232" style="text-anchor:start">Dans une phrase, la syllabe suivante est presque toujours la</text><text class="s-m" x="36" y="247" style="text-anchor:start">même : le readout des syllabes donne donc le plus grand score</text><text class="s-m" x="36" y="262" style="text-anchor:start">à la syllabe en cours.</text>
+<rect x="8" y="282" width="9" height="9" rx="2" style="fill:var(--phr)"/><text class="s-m" x="24" y="290" style="text-anchor:start">readout des fins de phrase : la phrase suivante, à ces deux pas</text>
+<rect x="230" y="298" width="38" height="20" rx="4" style="fill:none;stroke:var(--phr);stroke-width:1.2"/><text class="s-t" x="249" y="312">J2</text><rect x="368" y="298" width="38" height="20" rx="4" style="fill:none;stroke:var(--phr);stroke-width:1.2"/><text class="s-t" x="387" y="312">END</text>
+<text class="s-t" x="8" y="348" style="text-anchor:start">2. Performance : seules les fins de phrase comptent</text>
+<text class="s-m" x="8" y="368" style="text-anchor:start">pas évalués et bonne réponse, les mêmes pour les trois couleurs :</text>
+<circle cx="65" cy="390" r="1.6" style="fill:var(--muted)"/><circle cx="111" cy="390" r="1.6" style="fill:var(--muted)"/><circle cx="157" cy="390" r="1.6" style="fill:var(--muted)"/><circle cx="203" cy="390" r="1.6" style="fill:var(--muted)"/><circle cx="295" cy="390" r="1.6" style="fill:var(--muted)"/><circle cx="341" cy="390" r="1.6" style="fill:var(--muted)"/><rect x="230" y="380" width="38" height="20" rx="4" style="fill:none;stroke:var(--ink2);stroke-width:1.6"/><text class="s-t" x="249" y="394">J2</text><rect x="368" y="380" width="38" height="20" rx="4" style="fill:none;stroke:var(--ink2);stroke-width:1.6"/><text class="s-t" x="387" y="394">END</text>
 </svg>
-<p style="margin-top:6px">Exemple fictif. Dans une phrase, la syllabe suivante est presque toujours la même : le readout des syllabes apprend surtout que la phrase continue.</p>
 </figure>
 </div>
 
@@ -136,8 +138,8 @@ table.t th{font-weight:500;color:var(--ink2)}
 </div>
 <figure>
 <figcaption>Modèle 2 : un n-gramme des étiquettes</figcaption>
-<p>Le n-gramme ne lit pas l'audio. Il lit les vraies étiquettes des n phrases précédentes et donne la suite la plus fréquente dans les chants d'entraînement.</p>
-<svg class="model" viewBox="0 0 340 284" role="img" aria-label="Schéma : les n dernières étiquettes forment un contexte ; le n-gramme compte les phrases qui suivent ce contexte dans les chants d'entraînement et donne la plus fréquente">
+<p>Le n-gramme ne lit pas l'audio. Il lit les vraies étiquettes des n phrases précédentes et donne la suite la plus fréquente dans les chants d'entraînement. Si ce contexte n'y apparaît jamais, il donne la phrase la plus fréquente de tous les chants : c'est le cas de 2,5 % des points test à l'ordre 5 et de 13 % à l'ordre 10.</p>
+<svg class="model" viewBox="0 0 340 330" role="img" aria-label="Schéma : les n dernières étiquettes forment un contexte ; le n-gramme compte les phrases qui suivent ce contexte dans les chants d'entraînement et donne la plus fréquente ; si le contexte n'y apparaît jamais, il donne la phrase la plus fréquente de tous les chants d'entraînement">
 <rect class="s-fill" x="14" y="12" width="72" height="26" rx="4"/><rect class="s-fill" x="90" y="12" width="72" height="26" rx="4"/><rect class="s-fill" x="166" y="12" width="72" height="26" rx="4"/>
 <rect class="s-dash" x="246" y="12" width="72" height="26" rx="4"/>
 <text class="s-t" x="50" y="29">J1</text><text class="s-t" x="126" y="29">J2</text><text class="s-t" x="202" y="29">B1</text><text class="s-t" x="282" y="29">?</text>
@@ -152,6 +154,7 @@ table.t th{font-weight:500;color:var(--ink2)}
 <text class="s-m" x="170" y="212">barres : nombres d'occurrences (exemple fictif)</text>
 <line class="s-line" x1="170" y1="218" x2="170" y2="238" marker-end="url(#ah)"/>
 <rect class="s-out" x="50" y="240" width="240" height="32" rx="6"/><text class="s-t" x="170" y="260">phrase suivante : la plus fréquente</text>
+<rect class="s-dash" x="20" y="284" width="300" height="40" rx="6"/><text class="s-t" x="170" y="300">contexte jamais vu : aucune suite à compter</text><text class="s-m" x="170" y="316">la phrase la plus fréquente de tous les chants</text>
 </svg>
 <figcaption style="margin-top:22px">Modèle 2 bis : le n-gramme adaptatif</figcaption>
 <p>L'ordre n n'est pas fixé. À chaque phrase, le n-gramme adaptatif essaie le contexte le plus long, de 10 étiquettes. Si ce contexte n'apparaît dans aucun chant d'entraînement, il retire l'étiquette la plus ancienne et recommence.</p>
@@ -241,13 +244,15 @@ const allSongs = [459, 459, 459, 459, 458, 456, 456, 453, 443, 441, 432, 422, 40
 let charts = [];
 const chosenSeries = new Set(), chosenStudies = new Set();  // the highlighted bars of the studies chart, empty for all
 const studyFaded = j => chosenStudies.size > 0 && !chosenStudies.has(j);
-const faded = (series, row) => (chosenSeries.size > 0 && !chosenSeries.has(series)) || studyFaded(shown()[row]);
+const faded = (series, row) => studyFaded(shown()[row]);  // the series not chosen are hidden, not faded
+const seriesHidden = k => chosenSeries.size > 0 && !chosenSeries.has(k);
 function toggle(chosen, value) {  // a click adds the value to the highlighted ones, a second click removes it
   if (chosen.has(value)) chosen.delete(value); else chosen.add(value);
   document.querySelectorAll('.pick[data-series]').forEach(el => {
     el.classList.toggle('on', chosenSeries.has(+el.dataset.series));
     el.classList.toggle('off', chosenSeries.size > 0 && !chosenSeries.has(+el.dataset.series));
   });
+  charts[0].data.datasets.forEach((_, k) => charts[0].setDatasetVisibility(k, !seriesHidden(k)));
   charts[0].update();
 }
 document.querySelectorAll('.pick[data-series]').forEach(el => el.addEventListener('click', () => toggle(chosenSeries, +el.dataset.series)));
@@ -274,12 +279,12 @@ function draw() {
   charts = [
     new Chart(document.getElementById('studies'), {type: 'bar',
       data: {labels: rows(studies), datasets: [
-        {label: 'audio, octobre', data: rows(scoreShown === 'cv' ? october : october.map(() => null)), backgroundColor: c => faded(0, c.dataIndex) ? old + '30' : old, borderRadius: 3, maxBarThickness: 12, skipNull: true},
-        {label: 'audio, novembre', data: rows(scoreShown === 'cv' ? november : testNovember), backgroundColor: c => faded(1, c.dataIndex) ? res + '30' : res, borderRadius: 3, maxBarThickness: 12, skipNull: true},
-        {label: 'étiquettes, novembre', data: rows(scoreShown === 'cv' ? labelStudies : testLabels), backgroundColor: c => faded(2, c.dataIndex) ? lab + '30' : lab, borderRadius: 3, maxBarThickness: 12, skipNull: true},
-        {label: 'syllabes, lu tel quel', data: rows(scoreShown === 'cv' ? syllableRaw : testRaw), backgroundColor: c => faded(3, c.dataIndex) ? syl + '30' : syl, borderRadius: 3, maxBarThickness: 12},
-        {label: 'syllabes, changement connu', data: rows(scoreShown === 'cv' ? syllableChange : testChange), backgroundColor: c => faded(4, c.dataIndex) ? syl2 + '30' : syl2, borderRadius: 3, maxBarThickness: 12},
-        {label: 'syllabes, fins de phrase', data: rows(scoreShown === 'cv' ? syllablePhrases : testPhrases), backgroundColor: c => faded(5, c.dataIndex) ? phr + '30' : phr, borderRadius: 3, maxBarThickness: 12}]},
+        {label: 'audio, octobre', hidden: seriesHidden(0), data: rows(scoreShown === 'cv' ? october : october.map(() => null)), backgroundColor: c => faded(0, c.dataIndex) ? old + '30' : old, borderRadius: 3, maxBarThickness: 12, skipNull: true},
+        {label: 'audio, novembre', hidden: seriesHidden(1), data: rows(scoreShown === 'cv' ? november : testNovember), backgroundColor: c => faded(1, c.dataIndex) ? res + '30' : res, borderRadius: 3, maxBarThickness: 12, skipNull: true},
+        {label: 'étiquettes, novembre', hidden: seriesHidden(2), data: rows(scoreShown === 'cv' ? labelStudies : testLabels), backgroundColor: c => faded(2, c.dataIndex) ? lab + '30' : lab, borderRadius: 3, maxBarThickness: 12, skipNull: true},
+        {label: 'syllabes, lu tel quel', hidden: seriesHidden(3), data: rows(scoreShown === 'cv' ? syllableRaw : testRaw), backgroundColor: c => faded(3, c.dataIndex) ? syl + '30' : syl, borderRadius: 3, maxBarThickness: 12},
+        {label: 'syllabes, changement connu', hidden: seriesHidden(4), data: rows(scoreShown === 'cv' ? syllableChange : testChange), backgroundColor: c => faded(4, c.dataIndex) ? syl2 + '30' : syl2, borderRadius: 3, maxBarThickness: 12},
+        {label: 'syllabes, fins de phrase', hidden: seriesHidden(5), data: rows(scoreShown === 'cv' ? syllablePhrases : testPhrases), backgroundColor: c => faded(5, c.dataIndex) ? phr + '30' : phr, borderRadius: 3, maxBarThickness: 12}]},
       plugins: [{id: 'groupGaps', afterDatasetsUpdate: chart => {  // a small gap between audio, labels and syllables
         const group = [0, 0, 1, 2, 2, 2], gap = 4;
         chart.data.datasets.forEach((_, i) => chart.getDatasetMeta(i).data.forEach(bar => { bar.y += (group[i] - 1) * gap; }));

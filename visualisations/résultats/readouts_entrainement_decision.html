@@ -23,9 +23,9 @@ p.note{font-size:13px;color:var(--text-secondary);line-height:1.5;margin:0 0 16p
 .lg span{display:flex;align-items:center;gap:5px}
 </style>
 </head>
-<body>
+<body><style id="home-link-style">.home-link{display:inline-flex;vertical-align:-0.08em;margin-right:.4em;color:inherit;text-decoration:none}@media print{.home-link{display:none}}</style>
 <main>
-<h1>Readouts : mode d'entraînement et mode de décision</h1>
+<h1><a class="home-link" href="../index.html" title="Index des visualisations" aria-label="Index des visualisations"><svg viewBox="0 0 24 24" width="0.92em" height="0.92em" aria-hidden="true"><path d="M12 2.8 2 11.4h2.8V21h5.4v-6.2h3.6V21h5.4v-9.6H22z" fill="currentColor"/></svg></a>Readouts : mode d'entraînement et mode de décision</h1>
 <p class="note">Précision de la phrase suivante sur les chants de test. Chaque case a sa propre HPO : le réservoir est optimisé pour ce readout (400 essais), puis évalué sur 10 graines. Réservoirs purs mean_hag, var_hag, random_ee et random_ei, à 500 et 1 000 neurones. Source : <code>outputs/canary/next_phrase_calls[_leak]_readout-*_hpo.csv</code>, et pour last → last la version du commit d73ade5 de <code>next_phrase_calls[_leak]_hpo.csv</code>. Évaluations faites avant les 41 réétiquetages du 7 novembre 2026. Widget enregistré le 19 novembre 2026.</p>
 <div class="ct"><label>Réservoir <select id="res"><option value="all">Moyenne des 4</option><option value="0">mean_hag</option><option value="1">var_hag</option><option value="2">random_ee</option><option value="3">random_ei</option></select></label>
 <label>Taille <select id="size"><option value="both">500 et 1 000</option><option value="0">500</option><option value="1">1 000</option></select></label>
