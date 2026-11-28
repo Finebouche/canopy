@@ -6,6 +6,8 @@ canopy/datasets (not tracked), the recordings (WAV) and their annotations (a CSV
   - bengalese_gy6or6: songs of the Bengalese finch gy6or6 (32 kHz, 113 songs, 11 syllables);
   - kerguelen2014: blue and fin whale calls at Kerguelen in 2014 (250 Hz, 167 recordings of an hour, 3 calls);
   - llb3: songs of the canary llb3 (44.1 kHz, 2655 songs, 20 syllables, silences SIL);
+  - llb11, llb16: songs of the canaries llb11 and llb16, of the same dataset as llb3 (Cohen 2022, Zenodo 5956980:
+    canopy.datasets.cohen_canaries converts its archives to this format);
   - mouse_usv: ultrasonic vocalizations of mice (300 kHz, 51 recordings, a single label: no label to check).
 
 The segments of a recording (load_vocalizations: "phrases") are its annotated segments, SIL ignored, and for the canary
@@ -59,6 +61,8 @@ DATASETS = {
                                         n_mels=32, lifter=40, deltas=True, top_db=None),
                                    spectrogram=(256, 16, 125), context=5.0, speed=16.0, denoise=True),
     "llb3": Vocalizations(dict(canary_mfcc_config(44100), top_db=None), merge_repeats=True),
+    "llb11": Vocalizations(dict(canary_mfcc_config(44100), top_db=None), merge_repeats=True),
+    "llb16": Vocalizations(dict(canary_mfcc_config(44100), top_db=None), merge_repeats=True),
     "mouse_usv": Vocalizations(dict(sr=300000, n_mfcc=13, n_fft=1024, win_length=1024, hop_length=256, fmin=20000,
                                     fmax=120000, n_mels=64, lifter=40, deltas=True, top_db=None),
                                spectrogram=(1024, 128, 125000), context=0.05, speed=1 / 16),

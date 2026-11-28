@@ -1,6 +1,7 @@
 """
 Songs of the canary tasks (canopy.tasks): MFCC features of the songs of canopy.datasets.songs.load_songs (cached in
-FEATURES_CACHE, with their train/test split and their phrases) and HAG pretraining phrases.
+FEATURES_CACHE, with their train/test split and their phrases) and HAG pretraining phrases. load_dataset(dataset="llb3"):
+the songs of another canary, llb3, llb11 or llb16 (canopy.datasets.vocalizations), in the same form.
 """
 from pathlib import Path
 
@@ -8,7 +9,8 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 
 from canopy.datasets.songs import (CANARY_DIR, SONGS_SAMPLING_RATE, annotations_of_songs, build_phrase_sequences,
-                                   canary_mfcc_config, load_songs, phrase_boundaries, song_phrases, songs_mfcc)
+                                   canary_mfcc_config, load_songs, phrase_boundaries, song_phrases, songs_mfcc,
+                                   split_canary_songs)
 from hag.datasets.preprocessing import scale_data
 
 RIDGES = 10.0 ** np.arange(-14, 3)
@@ -45,16 +47,35 @@ def pretrain_phrases(songs, train_songs, frame):
     return np.array(phrases, dtype=object)[indices]
 
 
-def load_dataset(top_db=80.0):
+def load_other_canary(name):
+    """(songs, train songs, test songs, frame) of the canary name of canopy.datasets.vocalizations (llb3, llb11, llb16), in the form
+    of load_dataset: its MFCC without floor of the dB (the cache of the dataset, no audio needed), its phrases (its
+    segments, SIL ignored, the repeated labels merged), their boundaries and the train/test split by song of marron1
+    (split_canary_songs: 20 % of the songs in the test set, the same seed)."""
+    from canopy.datasets.vocalizations import load_vocalizations
+    data = load_vocalizations(name)
+    train_songs, test_songs = split_canary_songs(sorted(w for w, phrases in data["phrases"].items() if phrases))
+    songs = {w: dict(mfcc=data["songs"][w]["mfcc"], phrases=data["phrases"][w],
+                     boundaries=phrase_boundaries(data["phrases"][w])) for w in train_songs + test_songs}
+    return songs, train_songs, test_songs, data["frame"]
+
+
+def load_dataset(top_db=80.0, dataset="marron1"):
     """
     Songs of the tasks: songs[wave] = dict(mfcc (MFCC + deltas, MinMax-scaled (0, 1) on the train songs), phrases,
     boundaries), train and test songs, frame duration. The MFCC of all the songs are cached in FEATURES_CACHE (no
     audio kept). top_db: floor of the dB of the mel spectrogram below the maximum of the whole song (librosa's
     default, 80); None: no floor (cached in NO_FLOOR_FEATURES_CACHE), for the next-phrase prediction, since this
     maximum depends on the future of each frame. The phrases and boundaries are those of the current annotations
-    (annotations_of_songs, the corrected files included), not those of the cache.
+    (annotations_of_songs, the corrected files included), not those of the cache. dataset: "marron1", or another canary
+    (load_other_canary: its MFCC are cached without floor, top_db=None only).
     """
     import pickle
+    if dataset != "marron1":
+        if top_db is not None:
+            raise ValueError(f"{dataset}: its MFCC are cached without floor of the dB (top_db=None) only")
+        songs, train_songs, test_songs, frame = load_other_canary(dataset)
+        return scaled(songs, train_songs), train_songs, test_songs, frame
     if top_db not in (80.0, None):
         raise ValueError(f"top_db={top_db}: only 80 (FEATURES_CACHE) and None (NO_FLOOR_FEATURES_CACHE) are cached")
     cache = FEATURES_CACHE if top_db is not None else NO_FLOOR_FEATURES_CACHE
@@ -75,9 +96,14 @@ def load_dataset(top_db=80.0):
     for wave, song in songs.items():
         song["phrases"] = song_phrases(annotations, wave)
         song["boundaries"] = phrase_boundaries(song["phrases"])
+    return scaled(songs, train_songs), train_songs, test_songs, frame
+
+
+def scaled(songs, train_songs):
+    """The songs with their MFCC MinMax-scaled (0, 1) on the train songs."""
     other_songs = [w for w in songs if w not in set(train_songs)]
     train, _, other = scale_data([songs[w]["mfcc"] for w in train_songs], None,
                                  [songs[w]["mfcc"] for w in other_songs], MinMaxScaler(feature_range=(0, 1)), True)
     for wave, mfcc in zip(train_songs + other_songs, train + other):
         songs[wave]["mfcc"] = mfcc
-    return songs, train_songs, test_songs, frame
+    return songs

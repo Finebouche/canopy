@@ -3,8 +3,9 @@
 # (canopy.studies.next_phrase_labels): one job per study of the pure models at each size (job array), then the merge
 # of their parts into outputs/next_phrase_labels/hpo/marron1_db.sqlite3 and the final evaluation on the test songs
 # (one job, NB_SEEDS seeds). Run from the root of a checkout of canopy with the MFCC cache and the annotations:
-#   [CANOPY_WITH_CALLS=1] [CANOPY_LEAKY_RESERVOIRS=1] [CANOPY_LABELS_WITH_DURATIONS=1] [PURE="..."] [SIZES="500 1000"]
-#       [NB_SEEDS=10] [CONSTRAINT="zonda|suroit|bora"] bash slurm/submit_next_phrase_labels.sh
+#   [CANOPY_WITH_CALLS=1] [CANOPY_LEAKY_RESERVOIRS=1] [CANOPY_LABELS_WITH_DURATIONS=1] [CANOPY_DATASET=llb3] [PURE="..."]
+#       [SIZES="500 1000"] [NB_SEEDS=10] [CONSTRAINT="zonda|suroit|bora"] [BEGIN=20:00] bash slurm/submit_next_phrase_labels.sh
+# (CANOPY_DATASET=llb3: the canary llb3, canopy.settings; BEGIN: start of the studies, sbatch --begin, default now)
 # The studies are light (one step per phrase: 400 trials in 10 to 60 minutes): 8 cores and 16 GB per job.
 set -euo pipefail
 NB_SEEDS=${NB_SEEDS:-10}
@@ -18,7 +19,7 @@ mkdir -p slurm/logs slurm/tasks
 TASKS=slurm/tasks/next_phrase_labels_$(date +%Y%m%d_%H%M%S).txt
 for size in "${SIZES[@]}"; do for model in "${PURE[@]}"; do echo "$model $size"; done; done > "$TASKS"
 n=$(wc -l < "$TASKS")
-studies=$(sbatch --parsable "${NODES[@]}" "${RESOURCES[@]}" --array=0-$((n - 1)) --job-name=labels-studies \
+studies=$(sbatch --parsable "${NODES[@]}" "${RESOURCES[@]}" --begin="${BEGIN:-now}" --array=0-$((n - 1)) --job-name=labels-studies \
     --export=ALL,CANOPY_TASK=next_phrase_labels,CANOPY_TASK_FILE="$TASKS" slurm/canary.sbatch)
 echo "studies: job array $studies ($n studies, $TASKS)"
 merge=$(sbatch --parsable "${NODES[@]}" --cpus-per-task=1 --mem=4G --time=00:30:00 --dependency=afterok:$studies \

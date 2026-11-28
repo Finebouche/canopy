@@ -31,11 +31,18 @@ CLAUDE.md
 
 # Other datasets of vocalizations (canopy.datasets.vocalizations): recordings, annotations and MFCC caches
 /canopy/datasets/bengalese_gy6or6/
+/canopy/datasets/canary_song_archive/
 /canopy/datasets/kerguelen2014/
 /canopy/datasets/llb3/
+/canopy/datasets/llb11/
+/canopy/datasets/llb16/
 /canopy/datasets/mouse_usv/
+/canopy/datasets/xeno_canto_canaries/
 /canopy/datasets/incoming/
 
 # Local: sources of the reports (articles and theses, under copyright) and the configuration of Claude Code
 /reports/sources/
 /.claude/
+
+# Cache of visualisations/outils/make_classes_canaris.py
+/visualisations/résultats/classes_des_canaris/classes.pkl

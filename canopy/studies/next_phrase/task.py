@@ -30,7 +30,7 @@ from sklearn.metrics import f1_score
 from canopy.common import load_dataset, pretrain_phrases
 from canopy.datasets.songs import SONGS_SAMPLING_RATE, annotations_of_songs, canary_mfcc_config, song_phrases
 from canopy.models.reservoirs import CHUNK, build, state_chunks, states
-from canopy.settings import CALLS, RESET, RIDGE_SOLVER
+from canopy.settings import CALLS, DATASET_NAME, RESET, RIDGE_SOLVER
 
 START, END = "START", "END"
 N_STATIC = 13  # MFCC, before their deltas and delta-deltas in the cached features
@@ -61,9 +61,9 @@ def prepare(songs, train_songs, frame):
 
 
 def load_task_dataset():
-    """(songs, train songs, test songs, frame, classes): the MFCC without the floor of the dB
-    (canopy.common.load_dataset with top_db=None) and the prediction points (prepare)."""
-    songs, train_songs, test_songs, frame = load_dataset(top_db=None)
+    """(songs, train songs, test songs, frame, classes) of the canary CANOPY_DATASET (canopy.settings.DATASET_NAME): the
+    MFCC without the floor of the dB (canopy.common.load_dataset with top_db=None) and the prediction points (prepare)."""
+    songs, train_songs, test_songs, frame = load_dataset(top_db=None, dataset=DATASET_NAME)
     return songs, train_songs, test_songs, frame, prepare(songs, train_songs, frame)
 
 

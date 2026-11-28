@@ -15,7 +15,14 @@ their names, their storage, the cross-validation.
       job);
     without it, the database of the dataset of each study, outputs/<study>/hpo/marron1_db.sqlite3;
   CANOPY_RIDGE_SOLVER: solver of reservoirpy's Ridge, the readout of the next phrase ("svd": the singular value
-    decomposition of the centered states, stable with the smallest coefficients).
+    decomposition of the centered states, stable with the smallest coefficients);
+  CANOPY_DATASET: the canary of the studies, "marron1" (default), or "llb3", "llb11" or "llb16" (three other canaries,
+    Cohen et al. 2022, eLife; canopy.common.load_dataset). Only the next phrase from the audio and from the labels run
+    on them (DATASET_STUDIES), without calls (they have none); their Optuna studies, in
+    outputs/<study>/hpo/<dataset>_db.sqlite3, and their results are prefixed with "<dataset>_" (PREFIXES,
+    DATASET_PREFIX);
+  CANOPY_XENO_CANTO_KEY: the personal key of the API of xeno-canto (https://xeno-canto.org/account), read by
+    canopy.datasets.xeno_canto to list the recordings it downloads.
 (CANOPY_TASK: the study optimized by slurm/canary.sbatch, "boundaries", "next_phrase" or "syllables"; the scripts of the
 studies do not read it.)
 
@@ -51,8 +58,16 @@ N_TRIALS = int(os.environ.get("CANOPY_N_TRIALS", 400))
 WORKERS = int(os.environ.get("CANOPY_WORKERS", 1))
 JOB_STUDIES = os.environ.get("CANOPY_JOB_STUDIES_DIR")
 RIDGE_SOLVER = os.environ.get("CANOPY_RIDGE_SOLVER", "svd")
+XENO_CANTO_KEY = os.environ.get("CANOPY_XENO_CANTO_KEY")
 
-DATASET_NAME = "marron1"
+DATASET_NAME = os.environ.get("CANOPY_DATASET", "marron1")
+DATASETS = ("marron1", "llb3", "llb11", "llb16")
+DATASET_STUDIES = ("next_phrase", "next_phrase_labels")  # (the studies which run on the other datasets than marron1)
+if DATASET_NAME not in DATASETS:
+    raise ValueError(f"CANOPY_DATASET={DATASET_NAME}: one of {DATASETS}")
+if DATASET_NAME != "marron1" and CALLS:
+    raise ValueError(f"CANOPY_DATASET={DATASET_NAME} has no calls: CANOPY_WITH_CALLS=1 is for marron1 only")
+DATASET_PREFIX = "" if DATASET_NAME == "marron1" else f"{DATASET_NAME}_"  # (names of the studies and of the results)
 DATABASE_NAME = f"{DATASET_NAME}_db.sqlite3"
 
 N_FOLDS = 3  # (cross-validation by song on the train songs)
@@ -66,6 +81,9 @@ PREFIXES = {"phrase_boundaries": "",  # (the boundary studies have no variant: n
             "next_syllable": ("next_syllable_" + "calls_" * CALLS + "phrases_" * (SYLLABLE_READOUT == "phrases")
                               + "change_" * (SYLLABLE_SCORE == "change_known") + "leak_" * LEAK),
             "syllables_classification": "syllables_" + "gains_" * INPUT_GAINS + "leak_" * LEAK}
+
+
+PREFIXES = {study: DATASET_PREFIX + prefix for study, prefix in PREFIXES.items()}
 
 
 def study_name(study, model, size):

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Génération du chant</title>
+<style>
+/* Schéma du générateur de chants de canopy/studies/song_generation (generator.py) et de syllable_generation
+   (wavegan.py, sensorimotor.py), et ses premiers résultats (outputs/song_generation/*_comparison.csv). */
+:root{--bg:#fcfcfb;--ink:#0b0b0b;--ink2:#52514e;--muted:#898781;--grid:#e1e0d9;--panel:#eceae3;--done:#2a78d6;--doing:#eb6834;--todo:#898781}
+@media (prefers-color-scheme: dark){:root{--bg:#151515;--ink:#f0efec;--ink2:#c3c2b7;--muted:#898781;--grid:#2c2c2a;--panel:#232321;--done:#3987e5;--doing:#d95926;--todo:#898781}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif}
+main{max-width:min(1120px,80%);margin:0 auto;padding:24px 16px 48px}
+h1{font-size:22px;font-weight:500;margin:0 0 4px}
+h2{font-size:17px;font-weight:500;margin:34px 0 4px}
+p{margin:6px 0;color:var(--ink2);max-width:820px}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;margin:10px 0 0;font-size:13px;color:var(--ink2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.key{display:inline-block;width:22px;height:12px;border-radius:3px;border:2px solid}
+.scroll{overflow-x:auto}
+svg.scheme{display:block;width:100%;min-width:760px;height:auto;margin-top:8px}
+.b{fill:var(--bg);stroke-width:2}
+.b.done{stroke:var(--done)}.b.doing{stroke:var(--doing);stroke-dasharray:7 4}.b.todo{stroke:var(--todo);stroke-dasharray:2 4}
+.zone{fill:var(--panel);stroke:none}
+.t{fill:var(--ink);font-size:14px;font-weight:600;text-anchor:middle}
+.s{fill:var(--ink2);font-size:12px;text-anchor:middle}
+.z{fill:var(--muted);font-size:12px;font-weight:600}
+.a{fill:none;stroke:var(--ink2);stroke-width:1.6}
+.a.gate{stroke-dasharray:5 4}
+.a.loop{stroke:var(--done);stroke-width:2}
+.loopt{fill:var(--done);font-size:12px;font-weight:600;text-anchor:middle}
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:12px}
+.note{background:var(--panel);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--ink2)}
+.note b{color:var(--ink);font-weight:600}
+.bars{max-width:720px;margin-top:10px}
+.bar{display:grid;grid-template-columns:220px minmax(0,1fr) 56px;gap:10px;align-items:center;font-size:13px;margin-bottom:6px}
+.bar .n{color:var(--ink2)}
+.bar .track{height:16px;background:var(--panel);border-radius:4px;position:relative}
+.bar .fill{display:block;height:100%;border-radius:4px;background:var(--todo)}
+.bar .fill.gen{background:var(--doing)}
+.bar .fill.ref{background:var(--done)}
+.bar .v{text-align:right;font-variant-numeric:tabular-nums}
+table{border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums;margin-top:8px}
+th,td{text-align:left;padding:6px 18px 6px 0;border-bottom:1px solid var(--grid)}
+thead th{font-weight:600;color:var(--ink2);font-size:13px}
+@media (max-width:820px){main{max-width:none}.bar{grid-template-columns:130px minmax(0,1fr) 48px}}
+</style>
+</head>
+<body><style id="home-link-style">.home-link{display:inline-flex;vertical-align:-0.08em;margin-right:.4em;color:inherit;text-decoration:none}@media print{.home-link{display:none}}</style>
+<main>
+<h1><a class="home-link" href="../index.html" title="Index des visualisations" aria-label="Index des visualisations"><svg viewBox="0 0 24 24" width="0.92em" height="0.92em" aria-hidden="true"><path d="M12 2.8 2 11.4h2.8V21h5.4v-6.2h3.6V21h5.4v-9.6H22z" fill="currentColor"/></svg></a>Génération du chant de canari</h1>
+<p>Un réservoir écoute le chant, choisit la phrase suivante, une voix la chante, et le réservoir réécoute ce qu'elle a chanté.</p>
+<div class="legend">
+<span><i class="key" style="border-color:var(--done)"></i>fait</span>
+<span><i class="key" style="border-color:var(--doing);border-style:dashed"></i>en cours</span>
+<span><i class="key" style="border-color:var(--todo);border-style:dotted"></i>à faire</span>
+</div>
+
+<div class="scroll">
+<svg class="scheme" viewBox="0 0 1000 500" role="img" aria-label="Boucle du générateur : chant entendu, réservoir, lectures de la phrase suivante, de la fin et des frontières, choix, mémoire de travail, voix, chant produit, réécouté par le réservoir">
+<defs><marker id="h" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--ink2)"/></marker>
+<marker id="hl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="var(--done)"/></marker></defs>
+
+<!-- zones -->
+<rect class="zone" x="10" y="16" width="430" height="168" rx="12"/><text class="z" x="24" y="36">ÉCOUTE</text>
+<rect class="zone" x="456" y="16" width="534" height="232" rx="12"/><text class="z" x="470" y="36">DÉCISION</text>
+<rect class="zone" x="456" y="262" width="534" height="226" rx="12"/><text class="z" x="470" y="282">PRODUCTION</text>
+
+<!-- écoute -->
+<rect class="b done" x="26" y="60" width="180" height="76" rx="10"/><text class="t" x="116" y="90">Chant entendu</text><text class="s" x="116" y="110">audio → MFCC, trame par trame</text>
+<rect class="b done" x="246" y="60" width="180" height="76" rx="10"/><text class="t" x="336" y="90">Réservoir</text><text class="s" x="336" y="110">random_ei, 1 000 neurones</text><text class="s" x="336" y="126">avec fuite, jamais remis à zéro</text>
+
+<!-- décision : les trois lectures -->
+<rect class="b done" x="472" y="48" width="230" height="56" rx="10"/><text class="t" x="587" y="72">Lecture de la phrase suivante</text><text class="s" x="587" y="91">ridge, état en fin de phrase</text>
+<rect class="b done" x="472" y="114" width="230" height="56" rx="10"/><text class="t" x="587" y="138">Porte de fin</text><text class="s" x="587" y="157">sortie FIN calibrée (Platt), AUC 0,86</text>
+<rect class="b todo" x="472" y="180" width="230" height="56" rx="10"/><text class="t" x="587" y="204">Lecture des frontières</text><text class="s" x="587" y="223">dit quand une phrase se termine</text>
+<rect class="b done" x="752" y="74" width="222" height="76" rx="10"/><text class="t" x="863" y="100">Choix</text><text class="s" x="863" y="119">fin, ou phrase tirée selon</text><text class="s" x="863" y="135">les sorties, température T</text>
+
+<!-- production -->
+<rect class="b done" x="752" y="300" width="222" height="76" rx="10"/><text class="t" x="863" y="326">Mémoire de travail</text><text class="s" x="863" y="345">étiquette de la phrase chantée</text><text class="s" x="863" y="361">écrite quand sa porte s'ouvre</text>
+<rect class="b done" x="472" y="300" width="230" height="56" rx="10"/><text class="t" x="587" y="324">Voix, étape 1</text><text class="s" x="587" y="343">phrase enregistrée de cette étiquette</text>
+<rect class="b doing" x="472" y="372" width="230" height="100" rx="10"/><text class="t" x="587" y="396">Voix, étape 2</text><text class="s" x="587" y="416">modèle inverse (Hebb) :</text><text class="s" x="587" y="432">type → commande z ∈ [−1, 1]³</text><text class="s" x="587" y="452">WaveGAN de syllabes, 287 époques</text>
+<rect class="b done" x="246" y="330" width="180" height="76" rx="10"/><text class="t" x="336" y="360">Chant produit</text><text class="s" x="336" y="380">audio, phrase après phrase</text>
+
+<!-- flèches -->
+<path class="a" d="M206 98H244" marker-end="url(#h)"/>
+<path class="a" d="M426 92C445 92 450 76 470 76" marker-end="url(#h)"/>
+<path class="a" d="M426 100C448 100 450 142 470 142" marker-end="url(#h)"/>
+<path class="a" d="M426 108C440 108 446 208 470 208" marker-end="url(#h)"/>
+<path class="a" d="M702 76C730 76 728 100 750 100" marker-end="url(#h)"/>
+<path class="a" d="M702 142C730 142 728 124 750 124" marker-end="url(#h)"/>
+<path class="a" d="M863 150V298" marker-end="url(#h)"/>
+<path class="a gate" d="M702 208C780 208 800 240 800 298" marker-end="url(#h)"/><text class="s" x="815" y="258" style="text-anchor:start">ouvre la porte</text>
+<path class="a" d="M752 330H704" marker-end="url(#h)"/>
+<path class="a gate" d="M752 350C730 350 728 420 704 420" marker-end="url(#h)"/>
+<path class="a" d="M472 328C450 328 448 360 428 360" marker-end="url(#h)"/>
+<path class="a gate" d="M472 420C448 420 448 378 428 378" marker-end="url(#h)"/>
+<path class="a loop" d="M336 330V250C336 220 116 230 116 170V140" marker-end="url(#hl)"/>
+<text class="loopt" x="226" y="256">réécouté par le réservoir</text>
+</svg>
+</div>
+
+<div class="notes">
+<div class="note"><b>Choix.</b> À la fin de chaque phrase, la porte de fin décide d'abord si le chant s'arrête. Sinon, la phrase suivante est tirée parmi les étiquettes que la voix sait chanter, en proportion des sorties positives élevées à 1/T. À T = 0, c'est la plus grande sortie.</div>
+<div class="note"><b>Mémoire et porte.</b> Aujourd'hui, la porte s'ouvre à la fin de chaque phrase chantée, connue de la voix. À l'étape 3, c'est la lecture des frontières qui l'ouvrira, depuis ce que le réservoir entend.</div>
+<div class="note"><b>Voix, étape 2.</b> Le modèle inverse de Pagliarini et al. (2021) apprend, par babillage et règle de Hebb, la commande latente du GAN pour chacun des 16 types de syllabes. Il n'est pas encore branché sur la boucle.</div>
+</div>
+
+<h2>Le générateur ne bat pas encore une chaîne de Markov</h2>
+<p>Distance de variation totale entre les 3-grammes d'étiquettes des chants et ceux des 92 chants de test : plus elle est petite, plus la syntaxe ressemble à celle de marron1. Étape 1 (voix enregistrée), porte de fin, 200 chants générés.</p>
+<div class="bars" id="bars"></div>
+<p style="font-size:13px">Les chants d'entraînement donnent le plancher dû au bruit d'échantillonnage. La chaîne de Markov d'ordre 1, ajustée sur les mêmes chants, ne regarde que la dernière phrase : le générateur doit faire mieux qu'elle s'il utilise plus que cela.</p>
+<table>
+<thead><tr><th></th><th>Phrases par chant</th><th>2-grammes absents de l'entraînement</th></tr></thead>
+<tbody>
+<tr><td>Chants de test</td><td>28,0 ± 12,9</td><td>0,2 %</td></tr>
+<tr><td>Générés, T = 0</td><td>25,4 ± 23,5</td><td>1,1 %</td></tr>
+<tr><td>Chaîne de Markov d'ordre 1</td><td>26,2 ± 20,3</td><td>0 %</td></tr>
+</tbody>
+</table>
+</main>
+<script>
+// distances of the 3-grams (tv_3) of outputs/song_generation/next_phrase_calls_leak_random_ei_1000_comparison.csv, end "gate"
+const ROWS = [['Chants d\'entraînement', 0.093, 'ref'], ['Chaîne de Markov d\'ordre 1', 0.110, 'ref'], ['Générés, T = 0', 0.156, 'gen'],
+              ['Générés, T = 0,25', 0.157, 'gen'], ['Générés, T = 0,5', 0.199, 'gen'], ['Générés, T = 1', 0.640, 'gen']];
+const bars = document.getElementById('bars'), largest = Math.max(...ROWS.map(r => r[1]));
+for (const [name, value, kind] of ROWS) {
+  const row = document.createElement('div'), label = document.createElement('span'), track = document.createElement('span'), fill = document.createElement('span'), shown = document.createElement('span');
+  row.className = 'bar'; label.className = 'n'; track.className = 'track'; fill.className = 'fill ' + kind; shown.className = 'v';
+  label.textContent = name; shown.textContent = value.toFixed(2).replace('.', ',');
+  fill.style.width = (100 * value / largest) + '%';
+  track.append(fill); row.append(label, track, shown); bars.append(row);
+}
+</script>
+</body>
+</html>

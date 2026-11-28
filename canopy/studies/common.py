@@ -38,7 +38,7 @@ from optuna.trial import TrialState
 from scipy.stats import wilcoxon
 
 from canopy.models.reservoirs import ESN_MODELS, HAG_MODELS, PURE_MODELS, parts
-from canopy.settings import (DATASET_NAME, JOB_STUDIES, N_TRIALS, PREFIXES, WORKERS, database, outputs_dir,
+from canopy.settings import (DATASET_NAME, DATASET_STUDIES, JOB_STUDIES, N_TRIALS, PREFIXES, WORKERS, database, outputs_dir,
                              studies_database, study_name)
 
 
@@ -133,6 +133,8 @@ def run_study(study, model, size, make_objective):
     resumed where it stopped; make_objective(model, size): the objective of a worker (its data loaded in the worker).
     In a job (CANOPY_JOB_STUDIES_DIR), it starts from the Optuna study of the database of the dataset if it is there and
     not in the database of the job."""
+    if DATASET_NAME != "marron1" and study not in DATASET_STUDIES:
+        raise ValueError(f"{study}: only {DATASET_STUDIES} run on CANOPY_DATASET={DATASET_NAME}")
     if model not in PURE_MODELS:
         raise ValueError(f"Unknown model {model}, expected one of {PURE_MODELS} (the hybrids <hag>+<esn> are not "
                          "optimized: they combine the parts optimized alone, see conditions)")

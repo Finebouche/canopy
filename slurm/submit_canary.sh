@@ -11,8 +11,11 @@
 # ("next_phrase_<model>_<size>") and the final evaluation is slurm/submit_next_phrase.sh.
 # With CANOPY_SEARCH_INPUT_GAINS=1 (syllables), the gain of each group of input features is searched too, and with
 # CANOPY_LEAKY_RESERVOIRS=1 (syllables, next_phrase), the leak rate of each reservoir.
-# Usage: [CANOPY_TASK=syllables|next_phrase] [CANOPY_SEARCH_INPUT_GAINS=1] [CANOPY_LEAKY_RESERVOIRS=1] [PURE="..."]
-#        [SIZES="..."] bash slurm/submit_canary.sh
+# With CANOPY_DATASET=llb3 (next_phrase only), the studies run on the songs of the canary llb3 (canopy.settings): its
+# annotations and its MFCC cache, canopy/datasets/llb3/*.csv and mfcc_no_floor.pkl, must be in the checkout.
+# BEGIN: start of the studies (sbatch --begin, e.g. 20:00, the PlaFRIM charter; default now).
+# Usage: [CANOPY_TASK=syllables|next_phrase] [CANOPY_DATASET=llb3] [CANOPY_SEARCH_INPUT_GAINS=1]
+#        [CANOPY_LEAKY_RESERVOIRS=1] [PURE="..."] [SIZES="..."] [BEGIN=20:00] bash slurm/submit_canary.sh
 set -euo pipefail
 NB_SEEDS=${NB_SEEDS:-10}
 MAX_RUNNING=${MAX_RUNNING:-12}
@@ -31,14 +34,18 @@ export MAMBA_ROOT_PREFIX=$HOME/micromamba
 eval "$(micromamba shell hook -s bash)"
 micromamba activate hag_env
 set -u
-PYTHONPATH=$PWD:${HAG_DIR:-$HOME/hag_core} python -c "from canopy.common import load_dataset; load_dataset(); load_dataset(top_db=None)" > /dev/null
+if [ "${CANOPY_DATASET:-marron1}" = marron1 ]; then
+    PYTHONPATH=$PWD:${HAG_DIR:-$HOME/hag_core} python -c "from canopy.common import load_dataset; load_dataset(); load_dataset(top_db=None)" > /dev/null
+else  # (another canary: its cache must be there, no audio on PlaFRIM)
+    PYTHONPATH=$PWD:${HAG_DIR:-$HOME/hag_core} python -c "from canopy.common import load_dataset; load_dataset(top_db=None, dataset='$CANOPY_DATASET')" > /dev/null
+fi
 
 stamp=$(date +%Y%m%d_%H%M%S)
 PURE_TASKS=slurm/tasks/canary_pure_$stamp.txt
 for size in "${SIZES[@]}"; do for model in "${PURE[@]}"; do echo "$model $size"; done; done > "$PURE_TASKS"
 
 n=$(wc -l < "$PURE_TASKS")
-pure=$(sbatch --parsable "${NODES[@]}" --array=0-$((n - 1))%$MAX_RUNNING --job-name=canary-pure \
+pure=$(sbatch --parsable "${NODES[@]}" --begin="${BEGIN:-now}" --array=0-$((n - 1))%$MAX_RUNNING --job-name=canary-pure \
     --export=ALL,CANOPY_TASK_FILE="$PURE_TASKS" slurm/canary.sbatch)
 echo "pure models: job array $pure ($n studies, $PURE_TASKS)"
 

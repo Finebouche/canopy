@@ -17,7 +17,7 @@ from collections import Counter
 import numpy as np
 import pandas as pd
 
-from canopy.settings import CALLS, outputs_dir
+from canopy.settings import CALLS, DATASET_PREFIX, outputs_dir
 from canopy.studies.next_phrase.task import START, load_task_dataset, metrics
 
 MAX_ORDER = 10
@@ -59,6 +59,6 @@ if __name__ == "__main__":
     print(results.round(4).to_string(index=False))
     outputs_dir("next_phrase", "performances").mkdir(parents=True, exist_ok=True)
     file_name = (outputs_dir("next_phrase", "performances")
-                 / f"next_phrase_{'calls_' * CALLS}ngrams{'_all_songs' * all_songs}.csv")
+                 / f"{DATASET_PREFIX}next_phrase_{'calls_' * CALLS}ngrams{'_all_songs' * all_songs}.csv")
     results.to_csv(file_name, index=False)
     print("Saved to", file_name)

@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Calendrier des conférences</title>
+<style>
+/* Dates limites des conférences visées par les cartes de papiers.html. Les dates sont dans DEADLINES, en bas de page :
+   chaque conférence y porte ses dates limites, leur statut (officielle ou estimée), son classement et sa source. */
+:root{--text-primary:#0b0b0b;--text-secondary:#52514e;--text-muted:#898781;--bg:#fcfcfb;--bg-neutral:#eceae3;--border:#e1e0d9;--border-strong:#c3c2b7;--accent:#2a78d6;--accent-bg:#e6f1fb;--h1:#2a78d6;--h2:#e2572b;--h3:#14916a;--h5:#b97700;--h6:#6f6d66;--h7:#6250d6}
+@media (prefers-color-scheme: dark){:root{--text-primary:#f0efec;--text-secondary:#c3c2b7;--text-muted:#898781;--bg:#151515;--bg-neutral:#232321;--border:#2c2c2a;--border-strong:#444441;--accent:#3987e5;--accent-bg:#12263c;--h1:#3987e5;--h2:#d95926;--h3:#199e70;--h5:#b97700;--h6:#8a8880;--h7:#7c6fe0}}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--text-primary);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;margin:0;padding:24px 16px 56px}
+main{max-width:min(1120px,80%);margin:0 auto}
+h1{font-size:22px;font-weight:600;margin:0 0 6px}
+h2{font-size:17px;font-weight:600;margin:30px 0 8px}
+p{margin:0 0 10px;max-width:820px}
+p.note{font-size:13px;color:var(--text-secondary)}
+a{color:inherit}
+.legend{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--text-secondary);margin:10px 0 0}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.mark{display:inline-block;font-style:normal;width:20px;height:20px;border-radius:50%;font-size:11px;line-height:18px;text-align:center}
+.official{background:var(--accent);border:1px solid var(--accent);color:#fff}
+.estimated{border:2px dashed var(--accent);line-height:16px}
+.held{background:var(--bg-neutral);border-radius:4px}
+
+/* a paper (filled) or a track (outlined), in its colour of papiers.html */
+.paper{display:inline-block;font-style:normal;font-size:10px;font-weight:600;line-height:14px;min-width:16px;padding:0 3px;border-radius:4px;text-align:center;border:1px solid var(--c);background:var(--c);color:#fff;white-space:nowrap}
+.paper.track{background:transparent;color:var(--c)}
+.papers{display:inline-flex;flex-wrap:wrap;gap:2px;vertical-align:1px}
+.paperkey{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12px;color:var(--text-secondary);margin:6px 0 0}
+.paperkey span{display:inline-flex;align-items:center;gap:5px}
+
+/* the rank of a conference */
+.rank{display:inline-block;font-style:normal;font-size:10px;font-weight:600;line-height:14px;padding:0 4px;border-radius:4px;border:1px solid var(--border-strong);color:var(--text-secondary);white-space:nowrap}
+.rank.top{background:var(--text-primary);border-color:var(--text-primary);color:var(--bg)}
+
+/* the months */
+/* six months on a row on a wide screen (the arrow adds a row), three, two or one on narrower ones */
+.months{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+.month{border:1px solid var(--border);border-radius:10px;padding:9px 9px 10px;min-width:0}
+.month.quiet{opacity:.62}
+.month h3{font-size:14px;font-weight:600;margin:0 0 6px;text-transform:capitalize}
+.grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:2px 0;font-size:11px;text-align:center;font-variant-numeric:tabular-nums}
+.grid .dow{color:var(--text-muted)}
+.grid .day{height:22px;line-height:22px;color:var(--text-secondary);position:relative}
+.grid .day.held{color:var(--text-primary)}
+.grid .day .mark{width:20px;height:20px;line-height:16px;margin-top:1px}
+.grid .day .official{line-height:18px}
+.grid .day.today{outline:1px solid var(--text-primary);border-radius:4px}
+.chips{display:flex;flex-wrap:wrap;gap:3px 12px;margin:8px 0 0;font-size:12px;color:var(--text-secondary)}
+.chip{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;cursor:default}
+.chip b{color:var(--text-primary);font-weight:600;font-variant-numeric:tabular-nums}
+.chip .mark{width:10px;height:10px;flex:none}
+.chip .mark.held{border:1px solid var(--border-strong);border-radius:3px}
+.hover{cursor:default}
+
+/* the details of a conference, shown over an entry or a marked day */
+.tip{position:absolute;z-index:10;width:max-content;max-width:340px;background:var(--bg);border:1px solid var(--border-strong);border-radius:8px;padding:8px 11px;font-size:12px;line-height:1.5;color:var(--text-secondary);pointer-events:none}
+/* pinned after 1 s over its target: it stays until the mouse leaves it, and its links can be followed */
+.tip.pinned{pointer-events:auto;border-color:var(--text-muted)}
+.tip b{color:var(--text-primary);font-weight:600}
+.tip .conf + .conf{margin-top:8px;padding-top:8px;border-top:1px solid var(--border)}
+.tip .due{display:flex;align-items:baseline;gap:6px}
+.tip .due b{white-space:nowrap}
+.tip .mark{width:10px;height:10px;flex:none}
+
+/* the arrows on each side of the months: the six previous or following months */
+.browse{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:center;gap:8px}
+.nav{display:flex;align-items:center;justify-content:center;width:32px;height:32px;padding:0;border:1px solid var(--border-strong);border-radius:50%;background:var(--bg);color:var(--text-secondary);cursor:pointer}
+.nav:hover:not(:disabled){color:var(--text-primary);border-color:var(--text-muted)}
+.nav:disabled{opacity:.3;cursor:default}
+
+/* the map of the places */
+#map{display:block;width:100%;min-width:640px;height:auto;background:var(--bg-neutral);border-radius:10px}
+#map .land{fill:var(--bg);stroke:var(--border-strong);stroke-width:.5}
+#map .place{fill:var(--accent);stroke:var(--bg);stroke-width:2}
+#map text{font:600 13px system-ui,sans-serif;fill:var(--text-primary);paint-order:stroke;stroke:var(--bg);stroke-width:4px;stroke-linejoin:round}
+#map text .sub{font-weight:400;fill:var(--text-secondary)}
+
+/* the table of all the dates */
+table{border-collapse:collapse;width:100%;font-size:14px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 14px 8px 0;border-bottom:1px solid var(--border);vertical-align:top}
+thead th{font-weight:600;color:var(--text-secondary);font-size:13px}
+td.when{white-space:nowrap}
+td .sub{display:block;font-size:12px;color:var(--text-secondary)}
+tr.past td{color:var(--text-muted)}
+.status{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.status .mark{width:12px;height:12px}
+.scroll{overflow-x:auto}
+@media (max-width:1199px){.months{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:820px){main{max-width:none}}
+@media (max-width:640px){.months{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:400px){.months{grid-template-columns:minmax(0,1fr)}}
+@media print{.home-link{display:none}}
+</style>
+</head>
+<body><style id="home-link-style">.home-link{display:inline-flex;vertical-align:-0.08em;margin-right:.4em;color:inherit;text-decoration:none}@media print{.home-link{display:none}}</style>
+<main>
+<h1><a class="home-link" href="index.html" title="Index des visualisations" aria-label="Index des visualisations"><svg viewBox="0 0 24 24" width="0.92em" height="0.92em" aria-hidden="true"><path d="M12 2.8 2 11.4h2.8V21h5.4v-6.2h3.6V21h5.4v-9.6H22z" fill="currentColor"/></svg></a>Calendrier des dates limites des conférences</h1>
+<div class="legend">
+<span><i class="mark official"></i>date officielle</span>
+<span><i class="mark estimated"></i>échéance approximative, d’après l’édition précédente</span>
+<span><i class="mark held" style="border-radius:4px"></i>jours de la conférence</span>
+<span><i class="rank top">A*</i><i class="rank">A</i><i class="rank">B</i><i class="rank">C</i>classement ICORE 2026 sauf millésime indiqué</span>
+</div>
+<div class="paperkey" id="paperkey"></div>
+
+<h2>Mois par mois</h2>
+<div class="browse">
+<button type="button" class="nav" id="previous" title="Six mois précédents" aria-label="Six mois précédents"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+<div class="months" id="months"></div>
+<button type="button" class="nav" id="following" title="Six mois suivants" aria-label="Six mois suivants"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+</div>
+
+<h2>Où ont lieu les conférences</h2>
+<div class="scroll"><svg id="map" viewBox="0 0 960 470" role="img" aria-label="Villes annoncées par les organisateurs, détaillées dans le tableau"></svg></div>
+<p class="note" id="pending-places"></p>
+
+<h2>Toutes les dates</h2>
+<div class="scroll"><table>
+<thead><tr><th>Date limite</th><th>Conférence</th><th>Rang</th><th>Statut</th><th>Lieu et dates</th><th>Papiers</th></tr></thead>
+<tbody id="rows"></tbody>
+</table></div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<script>
+// The conferences: rank (ICORE 2026, portal.core.edu.au; rankNote when it comes from another list), dates (ISO day, what
+// is due, status: official, read on the site of the conference, or estimated when it is not published), the days of the conference
+// (held: first and last day), its announced city and coordinates (longitude, latitude), the
+// cards of papiers.html which aim at it, and the page where the dates were read.
+const DEADLINES = [
+  {name: 'EUSIPCO 2027', rank: 'B', rankYear: 2018, rankNote: 'CORE 2018, conférence retirée du classement en 2020', city: 'Darmstadt', at: [8.65, 49.87], place: 'Darmstadt, Allemagne', held: ['2027-08-30', '2027-09-03'], papers: '3', url: 'https://eusipco2027.de/calls/',
+   venue: 'darmstadtium', placeUrl: 'https://eusipco2027.de/conference-venue/',
+   note: 'Cinq pages, références comprises. Présenter la lecture comme un filtre adaptatif et mesurer comment la standardisation des états change la sensibilité de LMS et de NLMS au pas d’apprentissage.',
+   dates: [['2027-02-06', 'article', 'official']]},
+  {name: 'ICPR 2027', rank: 'B', city: null, at: null, online: true, place: 'En ligne', held: null, sessions: [['2027-10-04', '2027-10-06'], ['2027-10-14', '2027-10-15']], papers: '3', url: 'https://iapr.org/docs/newsletters/2026-Vol-48-No-4.pdf#page=4',
+   placeUrl: 'https://www.icpr2027.com/', instructionsUrl: 'https://www.icpr2027.com/web/instructions',
+   note: 'L’édition virtuelle accepte les analyses empiriques en article court de huit pages hors références. Comparer LMS, NLMS et RLS sur les trois tâches de reconnaissance de séquences, avec et sans fuite.',
+   dates: [['2027-03-01', 'enregistrement de l’article', 'official'], ['2027-03-08', 'article court', 'official']]},
+  {name: 'ECAI 2027', rank: 'A', city: 'Athènes', at: [23.73, 37.98], place: 'Athènes, Grèce', venue: 'Megaron Athens International Conference Center (conférence principale)', held: ['2027-10-02', '2027-10-07'], papers: '3', url: 'https://ecai2027.org/',
+   note: 'Cible plus ambitieuse si les essais sur JapaneseVowels et InsectSound permettent d’expliquer dans quelles conditions NLMS gagne sur LMS et quel écart subsiste avec RLS et ridge.',
+   dates: [['2027-04-14', 'article', 'official']]},
+  {name: 'PRICAI 2027', rank: 'B', city: null, at: null, place: 'Ville à annoncer', held: null, papers: '3', url: 'https://2026.pricai.org/calls/call-for-papers',
+   previousUrl: 'https://2026.pricai.org/submission',
+   note: 'En 2026, la conférence proposait des articles courts de 6 à 11 pages, références comprises. Pour 2027, viser mi-juin, d’après la date initiale du 13 juin 2026, prolongée au 27. Le format 2027 reste à confirmer.',
+   dates: [['2027-06-13', 'article', 'estimated']]},
+  {name: 'IDA 2027', rank: 'B', city: 'Pise', at: [10.40, 43.72], place: 'Pise, Italie', held: ['2027-04-21', '2027-04-23'], papers: '2, B', url: 'https://ida2027.eu/',
+   note: 'Le papier 2 peut mesurer ce que le rythme ajoute aux étiquettes pour prédire la phrase suivante. La piste B compare les façons de classer une séquence avec un réservoir.',
+   dates: [['2026-11-28', 'résumé', 'official'], ['2026-12-05', 'article', 'official']]},
+  {name: 'PAKDD 2027', rank: 'B', city: 'Wellington', at: [174.78, -41.29], place: 'Wellington, Nouvelle-Zélande', held: ['2027-06-29', '2027-07-02'], papers: '6', url: 'https://www.pakdd2027.org/pages/dates',
+   note: 'La section Survey accueille les comparaisons systématiques. Le papier 6 y aurait sa place avec sa revue des lectures de réservoir et son protocole de comparaison. Échéance prolongée au 4 décembre à 23 h 59 AoE.',
+   dates: [['2026-12-04', 'article de synthèse (Survey Track)', 'official']]},
+  {name: 'ICME 2027', rank: 'A', city: 'Xiamen', at: [118.08, 24.48], place: 'Xiamen, Chine', held: ['2027-07-13', '2027-07-17'], papers: '1, 2', url: 'https://2027.ieeeicme.org/authors/call-for-papers',
+   venue: 'Xiamen International Conference & Exhibition Center',
+   placeUrl: 'https://2027.ieeeicme.org/travel/venue',
+   note: 'L’appel couvre la génération et l’analyse audio. Pour le papier 1, évaluer la qualité du chant généré. Pour le papier 2, comparer la prédiction à partir du son et des étiquettes.',
+   dates: [['2026-12-30', 'article', 'official']]},
+  {name: 'ECML PKDD 2027', rank: 'A', city: 'Eindhoven', at: [5.48, 51.44], place: 'Eindhoven, Pays-Bas', held: ['2027-08-30', '2027-09-03'], papers: '4, 5', url: 'https://ecmlpkdd.org/2027/',
+   venue: 'Philips Stadion',
+   placeUrl: 'https://ecmlpkdd.org/2027/conference-venue/',
+   note: 'Comparer le coût de la lecture quadratique en forme duale (4) ou tester sur plusieurs tâches les règles locales (5). Le Journal Track ferme le 31 janvier. Les deux dates du Research Track reprennent le calendrier 2026.',
+   trackUrl: 'https://ecmlpkdd.org/2027/submissions-journal-track/', previousUrl: 'https://ecmlpkdd.org/2026/submissions-research-track/',
+   dates: [['2027-01-31', 'article (Journal Track)', 'official'], ['2027-03-05', 'résumé (Research Track)', 'estimated'], ['2027-03-12', 'article (Research Track)', 'estimated']]},
+  {name: 'KDD 2027', rank: 'A*', city: 'San José', at: [-121.89, 37.34], place: 'San José, États-Unis', held: ['2027-08-01', '2027-08-05'], papers: '6', url: 'https://kdd2027.kdd.org/datasets-and-benchmarks-track-call-for-papers/',
+   venue: 'San Jose McEnery Convention Center',
+   placeUrl: 'https://kdd2027.kdd.org/',
+   note: 'La section Datasets and Benchmarks convient si le banc d’essai des lectures devient réutilisable, avec code, données et protocole public. Le cycle 2 est estimé d’après celui de 2026.',
+   previousUrl: 'https://kdd2026.kdd.org/datasets-and-benchmarks-track-call-for-papers/',
+   dates: [['2027-02-01', 'résumé (cycle 2)', 'estimated'], ['2027-02-08', 'article (cycle 2)', 'estimated']]},
+  {name: 'CogSci 2027', rank: 'B', city: 'Bilbao', at: [-2.93, 43.26], place: 'Bilbao, Espagne', held: ['2027-07-28', '2027-07-31'], papers: '2', url: 'https://cognitivesciencesociety.org/cogsci-2027/',
+   venue: 'Euskalduna Bilbao Convention Centre',
+   note: 'Le papier sur le rythme du canari peut poser une question de cognition comparée si le lien entre rythme et syntaxe se retrouve chez plusieurs oiseaux. En 2026, les dépôts fermaient le 2 février.',
+   previousUrl: 'https://cognitivesciencesociety.org/submissions/', dates: [['2027-02-02', 'article', 'estimated']]},
+  {name: 'Interspeech 2027', rank: 'A', city: 'São Paulo', at: [-46.63, -23.55], place: 'São Paulo, Brésil', held: ['2027-08-29', '2027-09-02'], papers: '2', url: 'https://interspeech2027.org/calls/call_for_papers/',
+   venue: 'Mercado Livre Arena Pacaembu',
+   placeUrl: 'https://interspeech2027.org/destination/venue/',
+   note: 'La prosodie figure dans l’appel. Cette cible suppose d’expliciter ce que le rythme du chant de canari permet de comparer avec la parole humaine. Dépôt initial le 9 février, mise à jour possible jusqu’au 16.',
+   dates: [['2027-02-09', 'article', 'official']]},
+  {name: 'ICONIP 2027', rank: 'B', city: 'Bangkok', at: [100.50, 13.75], place: 'Bangkok, Thaïlande', held: null, papers: '3, 5, A, C', url: 'https://www.apnns.org/conferences/',
+   placeUrl: 'https://people.ucas.edu.cn/~houzengguang?language=en',
+   period: 'Novembre 2027, selon la présidence de la conférence',
+   note: 'Les lectures en ligne, les règles hebbiennes et la plasticité du réservoir relèvent des réseaux neuronaux. Le 10 mai était la date initiale en 2026, avant prolongation au 31 mai.',
+   previousUrl: 'https://www.iconip2026.org/call-for-papers', dates: [['2027-05-10', 'article', 'estimated']]},
+  {name: 'ICLR 2028', rank: 'A*', city: null, at: null, place: 'Lieu à confirmer', held: null, papers: '4, 5', url: 'https://iclr.cc/Conferences/FutureMeetings',
+   note: 'Tester si les produits d’états améliorent la représentation sur plusieurs tâches et à quel coût. Les repères de septembre viennent des soumissions pour ICLR 2027.',
+   previousUrl: 'https://www.iclr.cc/Conferences/2027/Dates', dates: [['2027-09-18', 'résumé', 'estimated'], ['2027-09-25', 'article', 'estimated']]},
+  {name: 'AISTATS 2028', rank: 'A', city: null, at: null, place: 'Lieu à confirmer', held: null, papers: '4, M', url: 'https://aistats.org/',
+   note: 'Le noyau exact du papier 4 ou une analyse du lien entre rang, nombre de chants et généralisation (M) peuvent porter une contribution statistique. Les dates reprennent celles du cycle 2027.',
+   previousUrl: 'https://aistats.org/aistats2027/dates.html', dates: [['2027-09-29', 'résumé', 'estimated'], ['2027-10-06', 'article', 'estimated']]},
+  {name: 'IJCAI 2027', rank: 'A*', city: 'Kyoto', at: [135.77, 35.01], place: 'Kyoto, Japon', held: ['2027-08-07', '2027-08-13'], papers: '4, 5', url: 'https://2027.ijcai.org/ijcai-2027-call-for-papers-main-track/',
+   placeUrl: 'https://2027.ijcai.org/',
+   satellite: {city: 'Hengqin', at: [113.51, 22.12], place: 'Hengqin, Chine', held: ['2027-08-15', '2027-08-17']},
+   note: 'Réponse le 21 avril. Chaque soumission coûte 100 dollars.',
+   dates: [['2027-01-04', 'résumé', 'official'], ['2027-01-11', 'article', 'official']]},
+  {name: 'ICML 2027', rank: 'A*', city: 'Rio de Janeiro', at: [-43.17, -22.91], place: 'Rio de Janeiro, Brésil', held: ['2027-07-31', '2027-08-06'], papers: '4', url: 'https://icml.cc/Conferences/2027/CallForPapers',
+   venue: 'Riocentro',
+   placeUrl: 'https://icml.cc/Conferences/2027',
+   note: 'Premier tri le 23 février, décision le 3 mai. La liste des auteurs est figée au résumé.',
+   dates: [['2027-01-14', 'résumé', 'official'], ['2027-01-22', 'article', 'official']]},
+  {name: 'COLT 2027', rank: 'A*', city: 'Tokyo', at: [139.69, 35.68], place: 'Tokyo, Japon', held: ['2027-06-28', '2027-07-02'], papers: 'M', url: 'https://learningtheory.org/colt2027/index.html',
+   note: 'Réponse le 3 mai.', dates: [['2027-01-29', 'article', 'official']]},
+  {name: 'IJCNN 2027', rank: 'B', city: 'Le Cap', at: [18.42, -33.92], place: 'Le Cap, Afrique du Sud', held: ['2027-06-14', '2027-06-18'], papers: '3, A', url: 'https://ijcnn.org/2027/authors/call-for-papers',
+   venue: 'Cape Town International Convention Centre',
+   placeUrl: 'https://ijcnn.org/2027/venue',
+   note: 'Soumissions ouvertes le 1er décembre. Réponse le 15 mars, version finale le 12 avril.',
+   dates: [['2027-01-31', 'article', 'official']]},
+  {name: 'ICANN 2027', rank: 'C', city: 'Linköping', at: [15.62, 58.41], place: 'Linköping, Suède', held: ['2027-08-24', '2027-08-27'], papers: '3, B', url: 'https://e-nns.org/icann2027/',
+   venue: 'Collegium, Linköping Science Park',
+   note: 'Le site de la conférence ne donne pas encore de date limite : fin mars est une estimation.', dates: [['2027-03-31', 'article', 'estimated']]},
+  {name: 'NeurIPS 2027', rank: 'A*', city: null, at: null, place: 'Europe, ville à venir', held: null, papers: '4, 5', url: 'https://neurips.cc/Conferences/FutureMeetings',
+   note: 'Le site de NeurIPS annonce seulement « Europe » pour 2027. En 2026, le résumé était dû le 4 mai.',
+   dates: [['2027-05-14', 'résumé', 'estimated'], ['2027-05-21', 'article', 'estimated']]},
+  {name: 'ICASSP 2028', rank: 'B', rankYear: 2023, rankNote: 'CORE 2023 ; classée « multiconférence » dans ICORE 2026', city: 'Tokyo', at: [139.69, 35.68], place: 'Tokyo, Japon', held: ['2028-05-28', '2028-06-02'], papers: '1, 3', url: 'https://2028.ieeeicassp.org/',
+   venue: 'Tokyo International Forum',
+   placeUrl: 'https://ieeeicassp.org/event/icassp-2028-tokyo/',
+   previousUrl: 'https://2027.ieeeicassp.org/important-dates/',
+   note: 'Pour le papier 3, mesurer la vitesse de convergence et le coût par mise à jour de NLMS face à LMS et RLS. Dépôt estimé d’après le 23 septembre 2026. Le site de l’édition 2028 annonce une clôture le 2 juin. Le calendrier général IEEE indique le 3 juin.', dates: [['2027-09-23', 'article', 'estimated']]},
+  {name: 'ESANN 2028', rank: 'B', city: null, at: null, place: 'Ville à annoncer', held: null, papers: '3, 4', url: 'https://www.esann.org/',
+   note: 'Bruges est annoncée pour 2027. Pour estimer le dépôt de 2028, le repère est le 18 novembre 2026, prolongé au 25.', dates: [['2027-11-18', 'article', 'estimated']]},
+];
+// the papers and tracks of papiers.html: their hue there and a short title (track: an idea, on the smaller cards)
+const PAPERS = {
+  1: {hue: 5, title: 'Modèle de chant de canari'}, 2: {hue: 2, title: 'Le canari « groove »'}, 3: {hue: 3, title: 'NLMS comme lecture'},
+  4: {hue: 7, title: 'Ordre 2 en forme duale'}, 5: {hue: 1, title: 'Ordre 2, règles locales'}, 6: {hue: 6, title: 'Revue des lectures'},
+  A: {hue: 1, title: 'Réparer EH', track: true}, B: {hue: 3, title: 'Comment lire un réservoir', track: true},
+  C: {hue: 7, title: 'HAG remplace la fuite', track: true}, M: {hue: 1, title: 'Rang de Φ', track: true},
+};
+function paperBadge(key) {
+  const paper = PAPERS[key], badge = document.createElement('i');
+  badge.className = 'paper' + (paper && paper.track ? ' track' : '');
+  badge.textContent = key;
+  if (paper) { badge.style.setProperty('--c', `var(--h${paper.hue})`); badge.title = `${paper.track ? 'Piste' : 'Papier'} ${key} : ${paper.title}`; }
+  return badge;
+}
+function paperBadges(list) {  // ("4, 5" -> the badges of papers 4 and 5)
+  const box = document.createElement('span');
+  box.className = 'papers';
+  for (const key of list.split(',').map(k => k.trim()).filter(Boolean)) box.append(paperBadge(key));
+  return box;
+}
+const STATUS = {official: 'officielle', estimated: 'estimée'};
+for (const [key, paper] of Object.entries(PAPERS)) {
+  const item = document.createElement('span');
+  item.append(paperBadge(key), paper.title);
+  document.getElementById('paperkey').append(item);
+}
+const rank = c => element('i', 'rank' + (c.rank === 'A*' ? ' top' : ''), c.rankYear ? `${c.rank} · ${c.rankYear}` : c.rank);
+const DAY = 86400000, day = iso => new Date(iso + 'T00:00:00');
+const now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+const long = date => date.toLocaleDateString('fr-FR', {day: 'numeric', month: 'long', year: 'numeric'});
+const short = date => date.toLocaleDateString('fr-FR', {day: 'numeric', month: 'short'});
+const element = (tag, className, text) => { const e = document.createElement(tag); if (className) e.className = className; if (text !== undefined) e.textContent = text; return e; };
+function sourceLink(label, url) {
+  const link = element('a', '', label);
+  link.href = url;
+  link.target = '_blank';
+  link.rel = 'noopener';
+  return link;
+}
+function remaining(date) {  // ("dans 45 jours", "aujourd'hui", "passée")
+  const days = Math.round((date - today) / DAY);
+  return days < 0 ? 'passée' : days === 0 ? 'aujourd\'hui' : days === 1 ? 'demain' : days < 60 ? `dans ${days} jours` : `dans ${Math.round(days / 30.4)} mois`;
+}
+const events = DEADLINES.flatMap(c => c.dates.map(([iso, due, status]) => ({conference: c, date: day(iso), due, status}))).sort((a, b) => a.date - b.date);
+// A satellite has its own place and dates, and shares the main conference's submission deadlines.
+const meetings = DEADLINES.flatMap(c => c.satellite
+  ? [c, {...c, ...c.satellite, name: c.name + ' (satellite)', satellite: null}]
+  : c.sessions ? c.sessions.map(held => ({...c, held})) : [c]);
+function meetingDates(c) {
+  if (c.sessions) return c.sessions.map(([from, to]) => short(day(from)) + ' – ' + long(day(to))).join(' et ');
+  return c.held ? `${short(day(c.held[0]))} – ${long(day(c.held[1]))}` : c.period || 'Dates à venir';
+}
+
+// the details of a conference, in a single box moved under the entry or the day which has the mouse or the focus
+const tip = element('div', 'tip');
+tip.hidden = true;
+document.body.append(tip);
+function details(c) {
+  const box = element('div', 'conf'), head = element('div');
+  head.append(element('b', '', c.name), ' ', rank(c), `, ${c.place} `, paperBadges(c.papers));
+  box.append(head);
+  for (const [iso, due, status] of c.dates) {
+    const line = element('div', 'due');
+    line.append(element('i', 'mark ' + status), element('b', '', long(day(iso))), due + (status === 'estimated' ? ' (estimée)' : ''));
+    box.append(line);
+  }
+  if (c.venue) box.append(element('div', '', c.venue));
+  box.append(element('div', '', meetingDates(c)));
+  if (c.satellite) box.append(element('div', '', `Satellite à ${c.satellite.place} · ${meetingDates(c.satellite)}`));
+  box.append(element('div', '', c.note));
+  return box;
+}
+function hoverable(target, conferences) {
+  const show = () => {
+    tip.replaceChildren(...conferences.map(details));
+    tip.hidden = false;
+    const box = target.getBoundingClientRect(), page = document.documentElement;
+    const below = box.bottom + 6 + tip.offsetHeight <= innerHeight;  // (above the target when there is no room below)
+    tip.style.left = Math.max(8, Math.min(box.left, page.clientWidth - tip.offsetWidth - 8)) + scrollX + 'px';
+    tip.style.top = (below ? box.bottom + 6 : box.top - tip.offsetHeight - 6) + scrollY + 'px';
+  };
+  const enter = () => {
+    if (tip.classList.contains('pinned') && tip.owner === target) return;  // (already pinned for this target)
+    unpin();
+    show();
+    tip.owner = target;
+    pinTimer = setTimeout(() => tip.classList.add('pinned'), PIN_DELAY);
+  };
+  const leave = () => {
+    clearTimeout(pinTimer);
+    if (!tip.classList.contains('pinned')) tip.hidden = true;  // (a pinned box stays while the mouse goes into it)
+  };
+  target.classList.add('hover');
+  target.tabIndex = 0;
+  for (const [type, action] of [['mouseenter', enter], ['focus', enter], ['mouseleave', leave], ['blur', leave]]) target.addEventListener(type, action);
+}
+// the box stays once it has been shown for PIN_DELAY over the same target: it then hides when the mouse leaves it, on a
+// click outside it or with the Escape key
+const PIN_DELAY = 1000;
+let pinTimer = null;
+function unpin() { clearTimeout(pinTimer); tip.classList.remove('pinned'); tip.hidden = true; tip.owner = null; }
+tip.addEventListener('mouseleave', event => { if (!tip.owner || !tip.owner.contains(event.relatedTarget)) unpin(); });
+document.addEventListener('click', event => { if (!tip.hidden && !tip.contains(event.target) && !(tip.owner && tip.owner.contains(event.target))) unpin(); });
+document.addEventListener('keydown', event => { if (event.key === 'Escape') unpin(); });
+
+// the months, from the current one (or the first deadline) to the last deadline
+const first = new Date(Math.min(today, events[0].date)), months = document.getElementById('months');
+const last = new Date(Math.max(events[events.length - 1].date, ...meetings.filter(c => c.held).map(c => day(c.held[1]))));
+for (let m = new Date(first.getFullYear(), first.getMonth(), 1); m <= last; m = new Date(m.getFullYear(), m.getMonth() + 1, 1)) {
+  const inMonth = date => date.getFullYear() === m.getFullYear() && date.getMonth() === m.getMonth();
+  const due = events.filter(e => inMonth(e.date)), held = meetings.filter(c => c.held && (inMonth(day(c.held[0])) || inMonth(day(c.held[1])))).sort((a, b) => day(a.held[0]) - day(b.held[0]));
+  const card = element('div', 'month' + (due.length || held.length ? '' : ' quiet'));
+  card.append(element('h3', '', m.toLocaleDateString('fr-FR', {month: 'long', year: 'numeric'})));
+  const grid = element('div', 'grid');
+  for (const letter of ['l', 'm', 'm', 'j', 'v', 's', 'd']) grid.append(element('span', 'dow', letter));
+  for (let blank = (m.getDay() + 6) % 7; blank > 0; blank--) grid.append(element('span'));
+  const length = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+  for (let d = 1; d <= length; d++) {
+    const date = new Date(m.getFullYear(), m.getMonth(), d), here = due.filter(e => e.date.getDate() === d);
+    const during = held.filter(c => date >= day(c.held[0]) && date <= day(c.held[1]));
+    const cell = element('span', 'day' + (during.length ? ' held' : '') + (date.getTime() === today.getTime() ? ' today' : ''));
+    if (here.length) cell.append(element('i', 'mark ' + here[0].status, String(d)));
+    else cell.textContent = d;
+    const concerned = [...new Set(here.map(e => e.conference).concat(during))];
+    if (concerned.length) hoverable(cell, concerned);
+    grid.append(cell);
+  }
+  card.append(grid);
+  // one short entry per conference: the days of its deadlines in the month, or the days when it is held
+  const chips = element('div', 'chips'), shortName = c => c.name.replace(/ \d{4}\b/, '');
+  for (const c of new Set(due.map(e => e.conference))) {
+    const mine = due.filter(e => e.conference === c), chip = element('span', 'chip');
+    chip.append(element('i', 'mark ' + mine[0].status), element('b', '', mine.map(e => e.date.getDate()).join(', ')), shortName(c), rank(c));
+    hoverable(chip, [c]);
+    chips.append(chip);
+  }
+  for (const c of held) {
+    const from = new Date(Math.max(day(c.held[0]), m)), to = new Date(Math.min(day(c.held[1]), new Date(m.getFullYear(), m.getMonth(), length)));
+    const chip = element('span', 'chip');
+    chip.append(element('i', 'mark held'), element('b', '', `${from.getDate()}–${to.getDate()}`), shortName(c), rank(c));
+    hoverable(chip, [c]);
+    chips.append(chip);
+  }
+  if (chips.children.length) card.append(chips);
+  months.append(card);
+}
+// six months shown at a time; the arrows on the sides show the six previous or following ones
+const STEP = 6, cards = [...months.children], previous = document.getElementById('previous'), following = document.getElementById('following');
+let start = 0;  // (index of the first month shown)
+function showMonths() {
+  cards.forEach((card, i) => { card.hidden = i < start || i >= start + STEP; });
+  previous.disabled = start === 0;
+  following.disabled = start + STEP >= cards.length;
+}
+previous.addEventListener('click', () => { start = Math.max(0, start - STEP); showMonths(); });
+following.addEventListener('click', () => { start = Math.min(start + STEP, Math.max(0, cards.length - 1)); showMonths(); });
+showMonths();
+
+// the table
+const rows = document.getElementById('rows');
+for (const e of events) {
+  const c = e.conference, row = element('tr', e.date < today ? 'past' : '');
+  const when = element('td', 'when'); when.append(element('b', '', long(e.date)), element('span', 'sub', remaining(e.date)));
+  const name = element('td');
+  name.append(sourceLink(c.name, c.url), ` · ${e.due}`, element('span', 'sub', c.note));
+  if (e.status === 'estimated' && c.previousUrl) name.append(sourceLink('Repère de l’édition précédente', c.previousUrl));
+  if (e.status === 'official' && c.trackUrl) name.append(sourceLink('Appel du Journal Track', c.trackUrl));
+  if (c.instructionsUrl) name.append(sourceLink('Consignes aux auteurs', c.instructionsUrl));
+  const status = element('td'), label = element('span', 'status'); label.append(element('i', 'mark ' + e.status), STATUS[e.status]); status.append(label);
+  const place = element('td');
+  place.append(sourceLink(c.place, c.placeUrl || c.url));
+  if (c.venue) place.append(element('span', 'sub', c.venue));
+  place.append(element('span', 'sub', meetingDates(c)));
+  if (c.satellite) place.append(element('span', 'sub', `Satellite à ${c.satellite.place} · ${meetingDates(c.satellite)}`));
+  const ranked = element('td'), series = c.name.replace(/ \d{4}$/, '');
+  const rankLink = sourceLink('', 'https://portal.core.edu.au/conf-ranks/?by=acronym&search=' + encodeURIComponent(series) + '&source=' + (c.rankYear ? 'CORE' + c.rankYear : 'ICORE2026'));
+  rankLink.title = c.rankNote || 'ICORE 2026';
+  rankLink.setAttribute('aria-label', `Classement de ${series} · ${c.rank} (${rankLink.title})`);
+  rankLink.append(rank(c));
+  ranked.append(rankLink);
+  const papers = element('td'); papers.append(paperBadges(c.papers));
+  row.append(when, name, ranked, status, place, papers);
+  rows.append(row);
+}
+
+// the map of the places: one point per city, the details of its conferences over it
+const cities = new Map();
+for (const c of meetings.filter(c => c.city)) {
+  if (!cities.has(c.city)) cities.set(c.city, []);
+  cities.get(c.city).push(c);
+}
+const pending = document.getElementById('pending-places');
+pending.append('Villes encore à préciser au 27 novembre 2026 : ');
+DEADLINES.filter(c => !c.city && !c.online).forEach((c, i) => {
+  if (i) pending.append(', ');
+  pending.append(sourceLink(c.name, c.url));
+  if (c.place.startsWith('Europe')) pending.append(' (Europe annoncée)');
+});
+pending.append('.');
+const LABELS = {Darmstadt: [-8, 9, 'end'], Eindhoven: [6, -6, 'start'], Kyoto: [-10, 0, 'end'], Tokyo: [8, -6, 'start'], 'Rio de Janeiro': [9, -4, 'start'], 'São Paulo': [-9, 14, 'end'], Hengqin: [-9, 0, 'end'], Bilbao: [-8, 12, 'end'], Wellington: [-10, 14, 'end']};
+async function drawMap() {
+  const world = await (await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json')).json();
+  const projection = d3.geoNaturalEarth1().fitExtent([[8, 8], [952, 462]], {type: 'Sphere'}), path = d3.geoPath(projection);
+  const svg = d3.select('#map');
+  svg.append('path').attr('class', 'land').attr('d', path(topojson.feature(world, world.objects.land)));
+  for (const [city, conferences] of cities) {
+    const at = conferences[0].at;
+    const [x, y] = projection(at), [dx, dy, anchor] = LABELS[city] || [11, 5, 'start'];
+    const group = svg.append('g');  // (the point and its label: the details of its conferences over them)
+    group.append('circle').attr('class', 'place').attr('cx', x).attr('cy', y).attr('r', 6);
+    const label = group.append('text').attr('x', x + dx).attr('y', y + dy).attr('text-anchor', anchor);
+    hoverable(group.node(), conferences);
+    label.append('tspan').text(city);
+  }
+}
+drawMap().catch(() => { document.getElementById('map').parentNode.style.display = 'none'; });  // (offline: no map, the table keeps the places)
+</script>
+</body>
+</html>

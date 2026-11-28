@@ -1,0 +1,253 @@
+[
+ {
+  "name": "notes plates",
+  "classes": {
+   "marron1": [
+    "T",
+    "R",
+    "Q"
+   ],
+   "llb3": [
+    "10",
+    "5"
+   ],
+   "llb11": [
+    "23",
+    "22",
+    "19",
+    "25"
+   ],
+   "llb16": [
+    "18",
+    "19",
+    "6"
+   ]
+  }
+ },
+ {
+  "name": "trilles rapides à large bande",
+  "classes": {
+   "llb3": [
+    "19",
+    "18",
+    "11"
+   ],
+   "llb11": [
+    "6",
+    "13",
+    "27",
+    "1",
+    "2",
+    "7"
+   ],
+   "llb16": [
+    "17",
+    "30",
+    "24",
+    "27"
+   ]
+  }
+ },
+ {
+  "name": "trilles moyens à notes descendantes",
+  "classes": {
+   "marron1": [
+    "A"
+   ],
+   "llb3": [
+    "9",
+    "2",
+    "14",
+    "1"
+   ],
+   "llb11": [
+    "11",
+    "18",
+    "20"
+   ],
+   "llb16": [
+    "1",
+    "5",
+    "12",
+    "29",
+    "14",
+    "16",
+    "3",
+    "2",
+    "13",
+    "21",
+    "11",
+    "28",
+    "26"
+   ]
+  }
+ },
+ {
+  "name": "trilles montants",
+  "classes": {
+   "marron1": [
+    "J1",
+    "J2",
+    "L2",
+    "U",
+    "K2",
+    "K"
+   ],
+   "llb3": [
+    "3"
+   ],
+   "llb16": [
+    "15"
+   ]
+  }
+ },
+ {
+  "name": "trilles de traits verticaux",
+  "classes": {
+   "marron1": [
+    "B1"
+   ],
+   "llb3": [
+    "7"
+   ],
+   "llb11": [
+    "21",
+    "8"
+   ],
+   "llb16": [
+    "25"
+   ]
+  }
+ },
+ {
+  "name": "trilles de notes brèves à harmoniques",
+  "classes": {
+   "llb11": [
+    "4",
+    "5",
+    "9",
+    "10"
+   ]
+  }
+ },
+ {
+  "name": "trilles de notes pleines à harmoniques empilés",
+  "classes": {
+   "marron1": [
+    "X"
+   ],
+   "llb3": [
+    "12",
+    "4",
+    "13",
+    "20",
+    "8"
+   ],
+   "llb11": [
+    "12",
+    "3"
+   ]
+  }
+ },
+ {
+  "name": "trilles montants lents",
+  "classes": {
+   "llb16": [
+    "8",
+    "9"
+   ]
+  }
+ },
+ {
+  "name": "trilles montants modulés",
+  "classes": {
+   "marron1": [
+    "L",
+    "M"
+   ]
+  }
+ },
+ {
+  "name": "trilles descendants",
+  "classes": {
+   "marron1": [
+    "D",
+    "N",
+    "V",
+    "E",
+    "B2",
+    "C"
+   ],
+   "llb11": [
+    "16",
+    "15"
+   ],
+   "llb16": [
+    "4",
+    "10"
+   ]
+  }
+ },
+ {
+  "name": "notes montantes lentes",
+  "classes": {
+   "marron1": [
+    "Z",
+    "call"
+   ],
+   "llb3": [
+    "6"
+   ],
+   "llb11": [
+    "24",
+    "17"
+   ],
+   "llb16": [
+    "7"
+   ]
+  }
+ },
+ {
+  "name": "empilements d'harmoniques",
+  "classes": {
+   "llb3": [
+    "15",
+    "17"
+   ],
+   "llb11": [
+    "14"
+   ],
+   "llb16": [
+    "20"
+   ]
+  }
+ },
+ {
+  "name": "phrases courtes à notes composites",
+  "classes": {
+   "marron1": [
+    "O",
+    "P",
+    "I",
+    "Ci",
+    "S",
+    "H"
+   ],
+   "llb16": [
+    "23",
+    "22"
+   ]
+  }
+ },
+ {
+  "name": "notes tenues à harmoniques",
+  "classes": {
+   "llb3": [
+    "16"
+   ],
+   "llb11": [
+    "26"
+   ]
+  }
+ }
+]
